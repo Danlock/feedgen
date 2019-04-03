@@ -9,8 +9,9 @@ import (
 	"sync"
 	"time"
 
-	feedgen "github.com/danlock/go-rss-gen/example/gen/feedgen"
-	feedgensvr "github.com/danlock/go-rss-gen/example/gen/http/feedgen/server"
+	"github.com/danlock/go-rss-gen/gen/feedgen"
+	feedgensvr "github.com/danlock/go-rss-gen/gen/http/feedgen/server"
+	"github.com/danlock/go-rss-gen/lib/logger"
 	goahttp "goa.design/goa/http"
 	httpmdlwr "goa.design/goa/http/middleware"
 	"goa.design/goa/middleware"
@@ -19,14 +20,6 @@ import (
 // handleHTTPServer starts configures and starts a HTTP server on the given
 // URL. It shuts down the server if any error is received in the error channel.
 func handleHTTPServer(ctx context.Context, u *url.URL, feedgenEndpoints *feedgen.Endpoints, wg *sync.WaitGroup, errc chan error, logger *log.Logger, debug bool) {
-
-	// Setup goa log adapter.
-	var (
-		adapter middleware.Logger
-	)
-	{
-		adapter = middleware.NewLogger(logger)
-	}
 
 	// Provide the transport specific request decoder and response encoder.
 	// The goa http package has built-in support for JSON, XML and gob.
@@ -39,22 +32,13 @@ func handleHTTPServer(ctx context.Context, u *url.URL, feedgenEndpoints *feedgen
 
 	// Build the service HTTP request multiplexer and configure it to serve
 	// HTTP requests to the service endpoints.
-	var mux goahttp.Muxer
-	{
-		mux = goahttp.NewMuxer()
-	}
+	mux := goahttp.NewMuxer()
 
 	// Wrap the endpoints with the transport specific layers. The generated
 	// server packages contains code generated from the design which maps
 	// the service input and output data structures to HTTP requests and
 	// responses.
-	var (
-		feedgenServer *feedgensvr.Server
-	)
-	{
-		eh := errorHandler(logger)
-		feedgenServer = feedgensvr.New(feedgenEndpoints, mux, dec, enc, eh)
-	}
+	feedgenServer := feedgensvr.New(feedgenEndpoints, mux, dec, enc, errorHandler())
 	// Configure the mux.
 	feedgensvr.Mount(mux, feedgenServer)
 
@@ -65,7 +49,7 @@ func handleHTTPServer(ctx context.Context, u *url.URL, feedgenEndpoints *feedgen
 		if debug {
 			handler = httpmdlwr.Debug(mux, os.Stdout)(handler)
 		}
-		handler = httpmdlwr.Log(adapter)(handler)
+		handler = httpmdlwr.Log(&logger.GoaLogAdapter)(handler)
 		handler = httpmdlwr.RequestID()(handler)
 	}
 
@@ -100,10 +84,10 @@ func handleHTTPServer(ctx context.Context, u *url.URL, feedgenEndpoints *feedgen
 // errorHandler returns a function that writes and logs the given error.
 // The function also writes and logs the error unique ID so that it's possible
 // to correlate.
-func errorHandler(logger *log.Logger) func(context.Context, http.ResponseWriter, error) {
+func errorHandler() func(context.Context, http.ResponseWriter, error) {
 	return func(ctx context.Context, w http.ResponseWriter, err error) {
 		id := ctx.Value(middleware.RequestIDKey).(string)
 		w.Write([]byte("[" + id + "] encoding: " + err.Error()))
-		logger.Printf("[%s] ERROR: %s", id, err.Error())
+		logger.Errf(ctx, "req_id: %s ERROR: %s", id, err.Error())
 	}
 }

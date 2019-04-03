@@ -4,52 +4,47 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"net/url"
 	"os"
 	"os/signal"
 	"strings"
 	"sync"
+	"time"
 
-	rssgen "github.com/danlock/go-rss-gen/example"
-	feedgen "github.com/danlock/go-rss-gen/example/gen/feedgen"
+	"github.com/danlock/go-rss-gen/lib"
+
+	"github.com/danlock/go-rss-gen/lib/logger"
+
+	"github.com/danlock/go-rss-gen/feed"
+	"github.com/danlock/go-rss-gen/gen/feedgen"
+	"github.com/joho/godotenv"
 )
 
+func helpAndQuit() {
+	flag.Usage()
+	os.Exit(0)
+}
+
 func main() {
+	logger.SetupLogger()
+	ctx := context.Background()
 	// Define command line flags, add any other flag required to configure the
 	// service.
 	var (
-		hostF     = flag.String("host", "localhost", "Server host (valid values: localhost)")
-		domainF   = flag.String("domain", "", "Host domain name (overrides host domain specified in service design)")
-		httpPortF = flag.String("http-port", "", "HTTP port (overrides host HTTP port specified in service design)")
-		secureF   = flag.Bool("secure", false, "Use secure scheme (https or grpcs)")
-		dbgF      = flag.Bool("debug", false, "Log request and response bodies")
+		dotenvLocation string
+		help           bool
+		host           string
 	)
+	flag.StringVar(&host, "host", "http://localhost:80", "Server host ")
+	flag.StringVar(&dotenvLocation, "e", "./ops/.env", "Location of .env file with environment variables in KEY=VALUE format")
+	flag.BoolVar(&help, "h", false, "Show help")
 	flag.Parse()
 
-	// Setup logger. Replace logger with your own log package of choice.
-	var (
-		logger *log.Logger
-	)
-	{
-		logger = log.New(os.Stderr, "[rssgen] ", log.Ltime)
+	if help {
+		helpAndQuit()
 	}
-
-	// Initialize the services.
-	var (
-		feedgenSvc feedgen.Service
-	)
-	{
-		feedgenSvc = rssgen.NewFeedgen(logger)
-	}
-
-	// Wrap the services in endpoints that can be invoked from other services
-	// potentially running in different processes.
-	var (
-		feedgenEndpoints *feedgen.Endpoints
-	)
-	{
-		feedgenEndpoints = feedgen.NewEndpoints(feedgenSvc)
+	if err := godotenv.Overload(dotenvLocation); err != nil {
+		logger.Warnf(ctx, "No .env file found")
 	}
 
 	// Create channel used by both the signal handler and server goroutines
@@ -64,44 +59,38 @@ func main() {
 		errc <- fmt.Errorf("%s", <-c)
 	}()
 
-	var wg sync.WaitGroup
-	ctx, cancel := context.WithCancel(context.Background())
-
-	// Start the servers and send errors (if any) to the error channel.
-	switch *hostF {
-	case "localhost":
-		{
-			addr := "http://localhost:80"
-			u, err := url.Parse(addr)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "invalid URL %#v: %s", addr, err)
-				os.Exit(1)
-			}
-			if *secureF {
-				u.Scheme = "https"
-			}
-			if *domainF != "" {
-				u.Host = *domainF
-			}
-			if *httpPortF != "" {
-				h := strings.Split(u.Host, ":")[0]
-				u.Host = h + ":" + *httpPortF
-			} else if u.Port() == "" {
-				u.Host += ":80"
-			}
-			handleHTTPServer(ctx, u, feedgenEndpoints, &wg, errc, logger, *dbgF)
+	ctx, cancel : = context.WithCancel(ctx)
+	switch flag.Arg(0) {
+	case "poll":
+		freq, err := time.ParseDuration(lib.GetEnvOrWarn("RSS_GEN_POLL_FREQUENCY"))
+		if err != nil {
+			freq = 6 * time.Hour
+			logger.Warnf(ctx, "Using default poll duration %s", freq.String())
 		}
-
+		releaseChan := feed.PollMUForReleases(ctx, freq)
+		select {
+		case releases := <-releaseChan:
+			logger.Infof(ctx,"Got these releases \n%+v",releases)
+		case err := <-errc:
+			logger.Printf("exiting (%v)", err)
+			cancel()
+		}
+	case "api":
+		u, err := url.Parse(host)
+		if err != nil {
+			logger.Errf(ctx,"invalid URL %#v: %s", addr, err)
+			os.Exit(1)
+		}
+		var wg sync.WaitGroup
+		handleHTTPServer(ctx, u, feedgen.NewEndpoints(feed.New()), &wg, errc, logger, lib.GetEnvOrWarn("RSS_GEN_DEBUG") == "true")
+		// Wait for signal.
+		logger.Printf("exiting (%v)", <-errc)
+		// Send cancellation signal to the goroutines.
+		cancel()
+		wg.Wait()
+		logger.Println("exited")
 	default:
-		fmt.Fprintf(os.Stderr, "invalid host argument: %q (valid hosts: localhost)", *hostF)
+		logger.Infof(ctx,"Available commands are poll,api")
+		helpAndQuit()
 	}
-
-	// Wait for signal.
-	logger.Printf("exiting (%v)", <-errc)
-
-	// Send cancellation signal to the goroutines.
-	cancel()
-
-	wg.Wait()
-	logger.Println("exited")
 }

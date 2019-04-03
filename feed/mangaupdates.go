@@ -1,4 +1,4 @@
-package feedgen
+package feed
 
 import (
 	"context"

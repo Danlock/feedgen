@@ -70,3 +70,10 @@ func Debugf(ctx context.Context, msg string, vals ...interface{}) {
 		logf(ctx, "[DEBUG]", msg, vals...)
 	}
 }
+
+type GoaLogAdapter struct{}
+
+func (*GoaLogAdapter) Log(keyvals ...interface{}) error {
+	Infof(context.Background(), "%+v", keyvals)
+	return nil
+}
