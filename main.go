@@ -1,27 +1,36 @@
 package main
 
 import (
-	"log"
-	"time"
+	"flag"
+	"os"
 
-	"github.com/danlock/go-rss-gen/feedgen"
+	"github.com/danlock/go-rss-gen/lib/logger"
+
+	"github.com/joho/godotenv"
 )
 
-const releasePollFrequency = 6 * time.Hour
+func helpAndQuit() {
+	flag.Usage()
+	os.Exit(0)
+}
 
 func main() {
-	// ctx, cancel := context.WithCancel(context.Background())
-	// out := feedgen.PollMUForReleases(ctx, 2*time.Second)
-	// timer := time.NewTimer(10 * time.Second)
-	// for {
-	// 	select {
-	// 	case <-timer.C:
-	// 		cancel()
-	// 		return
-	// 	case releases := <-out:
-	// 		fmt.Printf("%+v", releases)
-	// 	}
-	// }
-	infos, _ := feedgen.QueryAllMUSeries()
-	log.Printf("%+v", infos)
+	logger.SetupLogger()
+	var (
+		dotenvLocation string
+		help           bool
+	)
+	flag.StringVar(&dotenvLocation, "e", "./ops/.env", "Location of .env file with environment variables in KEY=VALUE format")
+	flag.BoolVar(&help, "h", false, "Show help")
+	flag.Parse()
+	if help {
+		helpAndQuit()
+	}
+	godotenv.Overload(dotenvLocation)
+	switch flag.Arg(0) {
+	case "poll":
+
+	default:
+		helpAndQuit()
+	}
 }
