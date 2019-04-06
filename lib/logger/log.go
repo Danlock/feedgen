@@ -7,8 +7,6 @@ import (
 	"os"
 
 	"goa.design/goa/middleware"
-
-	"github.com/danlock/go-rss-gen/lib"
 )
 
 type logCtxKeyType struct{}
@@ -58,7 +56,7 @@ func SetupLogger(prefix string) *log.Logger {
 	return lgr
 }
 
-const calldepth = 4
+const calldepth = 3
 
 func logf(ctx context.Context, prefix, msg string, vals ...interface{}) {
 	log.Output(calldepth, fmt.Sprintf("%s %s %s", prefix, fmt.Sprintf(msg, vals...), getLogCtx(ctx)))
@@ -82,11 +80,15 @@ var (
 func Debugf(ctx context.Context, msg string, vals ...interface{}) {
 	if !checkedDebug {
 		checkedDebug = true
-		isDebug = lib.GetEnvOrWarn("RSS_GEN_DEBUG") == "true"
+		isDebug = IsDebug()
 	}
 	if isDebug {
 		logf(ctx, "[DEBUG]", msg, vals...)
 	}
+}
+
+func IsDebug() bool {
+	return os.Getenv("RSS_GEN_DEBUG") == "true"
 }
 
 type GoaLogAdapter struct{}

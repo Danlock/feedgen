@@ -29,6 +29,7 @@ type MangaRelease struct {
 type MangaInfo struct {
 	MUID          int
 	Titles        []string
+	DisplayTitle  string
 	LatestRelease string
 }
 
@@ -99,10 +100,12 @@ func getAndParseMUMangaPage(id int) (m MangaInfo, err error) {
 		return m, errors.New("Failed to parse mainTitle")
 	}
 	mainTitle := htmlquery.InnerText(mainTitleNode)
+	strings.TrimSpace(mainTitle)
 	if mainTitle == "" {
 		return m, errors.New("Got empty title")
 	}
 	m.MUID = id
+	m.DisplayTitle = mainTitle
 	m.Titles = append(m.Titles, strings.ToLower(mainTitle))
 	assocNamesNode := htmlquery.FindOne(seriesInfo, "/div[3]/div[8]")
 	if assocNamesNode == nil || assocNamesNode.FirstChild == nil {
@@ -111,8 +114,9 @@ func getAndParseMUMangaPage(id int) (m MangaInfo, err error) {
 
 	assocNameNode := assocNamesNode.FirstChild
 	for assocNameNode != nil {
-		if assocNameNode.Data != "N/A" && assocNameNode.Data != "" && assocNameNode.Data != "br" {
-			m.Titles = append(m.Titles, strings.ToLower(assocNameNode.Data))
+		adTitle := strings.TrimSpace(assocNameNode.Data)
+		if adTitle != "N/A" && adTitle != "" && adTitle != "br" {
+			m.Titles = append(m.Titles, strings.ToLower(adTitle))
 		}
 		assocNameNode = assocNameNode.NextSibling
 	}
@@ -124,14 +128,12 @@ func getAndParseMUMangaPage(id int) (m MangaInfo, err error) {
 	return m, nil
 }
 
-const maxSeriesID = 200000
-
-func QueryAllMUSeries(ctx context.Context) ([]MangaInfo, error) {
+func QueryMUSeriesRange(ctx context.Context, start, end int) ([]MangaInfo, error) {
 	// Create sender goroutine that sends down ids and closes when done
 	idChan := make(chan int)
 	go func() {
 		defer close(idChan)
-		for i := 1; i < maxSeriesID; i++ {
+		for i := start; i < end; i++ {
 			select {
 			case idChan <- i:
 			case <-ctx.Done():

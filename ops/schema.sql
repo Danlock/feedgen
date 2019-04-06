@@ -2,6 +2,7 @@ CREATE TABLE public.manga (
 	id serial NOT NULL,
 	muid int NOT NULL,
 	latest_release varchar NOT NULL,
+	display_title VARCHAR NOT NULL,
 	created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	UNIQUE INDEX manga_muid_idx (muid ASC),
 	CONSTRAINT manga_pk PRIMARY KEY (id)

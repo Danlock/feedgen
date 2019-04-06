@@ -29,26 +29,23 @@ func NewMangaStore(db *sqlx.DB) MangaStorer {
 }
 
 func (m *mangaStore) UpsertManga(ctx context.Context, manga []feed.MangaInfo) error {
-	mangaQuery := `
-	INSERT INTO manga (muid, latest_release)
-		%s
-		ON CONFLICT (muid)
-		DO UPDATE SET latest_release = excluded.latest_release;
-	`
-	titleQuery := "UPSERT INTO mangatitle (muid,title) %s;"
+	mangaQuery := `INSERT INTO manga (muid, latest_release, display_title) VALUES
+%s
+ON CONFLICT (muid)
+DO UPDATE SET latest_release = excluded.latest_release;`
+	titleQuery := "UPSERT INTO mangatitle (muid,title) VALUES %s;"
 
 	muidReleaseArray := make([]interface{}, 0, len(manga)*2)
-	mangaValues := "VALUES"
+	mangaValues := ""
 	muidTitleArray := make([]interface{}, 0)
-	titleValues := "VALUES"
-
+	titleValues := ""
 	for _, m := range manga {
 		if m.MUID < 1 {
 			logger.Errf(ctx, "Skipping upserting corrupted manga %+v", m)
 			continue
 		}
-		mangaValues += fmt.Sprintf(" (?,?),")
-		muidReleaseArray = append(muidReleaseArray, m.MUID, m.LatestRelease)
+		mangaValues += fmt.Sprintf(" (?,?,?),")
+		muidReleaseArray = append(muidReleaseArray, m.MUID, m.LatestRelease, m.DisplayTitle)
 		for _, t := range m.Titles {
 			titleValues += fmt.Sprintf(" (?,?),")
 			muidTitleArray = append(muidTitleArray, m.MUID, t)
@@ -59,12 +56,13 @@ func (m *mangaStore) UpsertManga(ctx context.Context, manga []feed.MangaInfo) er
 	titleValues = titleValues[:len(titleValues)-1]
 
 	mangaQuery = fmt.Sprintf(mangaQuery, mangaValues)
+	mangaQuery = m.db.Rebind(mangaQuery)
 	if _, err := m.db.ExecContext(ctx, mangaQuery, muidReleaseArray...); err != nil {
 		logger.Errf(ctx, "Failed upserting manga with %s\n with error %s", mangaQuery, ErrDetails(err))
 		return errors.WithStack(err)
 	}
-
 	titleQuery = fmt.Sprintf(titleQuery, titleValues)
+	titleQuery = m.db.Rebind(titleQuery)
 	if _, err := m.db.ExecContext(ctx, titleQuery, muidTitleArray...); err != nil {
 		logger.Errf(ctx, "Failed upserting titles with %s\n with error %s", titleQuery, ErrDetails(err))
 		return errors.WithStack(err)
@@ -108,6 +106,7 @@ func (m *mangaStore) UpsertRelease(ctx context.Context, releases []feed.MangaRel
 		}
 	}
 	releaseQuery = fmt.Sprintf(releaseQuery, releaseValues)
+	releaseQuery = m.db.Rebind(releaseQuery)
 	if _, err := m.db.ExecContext(ctx, releaseQuery, valuesArr...); err != nil {
 		logger.Errf(ctx, "Failed to get upsert release with query %s and err: %+v", releaseQuery, ErrDetails(err))
 		return errors.WithStack(err)
@@ -139,6 +138,7 @@ func (m *mangaStore) FindMangaByTitles(ctx context.Context, titles []string, out
 	}
 	titleValues = titleValues[:len(titleValues)-1]
 	titleQuery = fmt.Sprintf(titleQuery, titleValues)
+	titleQuery = m.db.Rebind(titleQuery)
 	if err := m.db.SelectContext(ctx, outPtr, titleQuery, titlesArr...); err != nil {
 		logger.Errf(ctx, "Failed getting titles with %s err:%+v", titleQuery, ErrDetails(err))
 		return errors.WithStack(err)
