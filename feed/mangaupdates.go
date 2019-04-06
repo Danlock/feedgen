@@ -3,7 +3,6 @@ package feed
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/url"
 	"strconv"
 	"strings"
@@ -11,6 +10,7 @@ import (
 	"time"
 
 	"github.com/antchfx/htmlquery"
+	"github.com/danlock/go-rss-gen/lib/logger"
 	"github.com/pkg/errors"
 	"golang.org/x/net/html"
 )
@@ -50,9 +50,9 @@ func parseMUDailyReleases(table *html.Node) ([]MangaRelease, error) {
 					}
 					currentMangaRelease = MangaRelease{CreatedAt: now}
 					if releaseLinks == nil {
-						currentMangaRelease.Title = htmlquery.InnerText(release)
+						currentMangaRelease.Title = strings.ToLower(htmlquery.InnerText(release))
 					} else {
-						currentMangaRelease.Title = htmlquery.InnerText(releaseLinks)
+						currentMangaRelease.Title = strings.ToLower(htmlquery.InnerText(releaseLinks))
 						for _, a := range releaseLinks.Attr {
 							if strings.Contains(a.Key, "href") {
 								link, err := url.Parse(a.Val)
@@ -103,7 +103,7 @@ func getAndParseMUMangaPage(id int) (m MangaInfo, err error) {
 		return m, errors.New("Got empty title")
 	}
 	m.MUID = id
-	m.Titles = append(m.Titles, mainTitle)
+	m.Titles = append(m.Titles, strings.ToLower(mainTitle))
 	assocNamesNode := htmlquery.FindOne(seriesInfo, "/div[3]/div[8]")
 	if assocNamesNode == nil || assocNamesNode.FirstChild == nil {
 		return m, errors.New("Failed to get associated names")
@@ -112,7 +112,7 @@ func getAndParseMUMangaPage(id int) (m MangaInfo, err error) {
 	assocNameNode := assocNamesNode.FirstChild
 	for assocNameNode != nil {
 		if assocNameNode.Data != "N/A" && assocNameNode.Data != "" && assocNameNode.Data != "br" {
-			m.Titles = append(m.Titles, assocNameNode.Data)
+			m.Titles = append(m.Titles, strings.ToLower(assocNameNode.Data))
 		}
 		assocNameNode = assocNameNode.NextSibling
 	}
@@ -126,14 +126,19 @@ func getAndParseMUMangaPage(id int) (m MangaInfo, err error) {
 
 const maxSeriesID = 200000
 
-func QueryAllMUSeries() ([]MangaInfo, error) {
+func QueryAllMUSeries(ctx context.Context) ([]MangaInfo, error) {
 	// Create sender goroutine that sends down ids and closes when done
 	idChan := make(chan int)
 	go func() {
+		defer close(idChan)
 		for i := 1; i < maxSeriesID; i++ {
-			idChan <- i
+			select {
+			case idChan <- i:
+			case <-ctx.Done():
+				logger.Infof(ctx, "Stopping QueryAllMUSeries due to %+v", ctx.Err())
+				return
+			}
 		}
-		close(idChan)
 	}()
 	// Create worker goroutines that do work on each id and end on chan close
 	infoChan := make(chan MangaInfo)
@@ -145,7 +150,7 @@ func QueryAllMUSeries() ([]MangaInfo, error) {
 			for id := range idChan {
 				info, err := getAndParseMUMangaPage(id)
 				if err != nil {
-					log.Printf("Failure on %d err:%+v", id, err)
+					logger.Errf(ctx, "Failure on %d err:%+v", id, err)
 					continue
 				}
 				infoChan <- info
@@ -207,7 +212,7 @@ func PollMUForReleases(ctx context.Context, freq time.Duration) <-chan []MangaRe
 			case <-timer.C:
 				releases, err := QueryLast2DaysOfMUReleases()
 				if err != nil {
-					log.Printf("Failed to get releases from MangaUpdates! %+v", err)
+					logger.Errf(ctx, "Failed to get releases from MangaUpdates! %+v", err)
 				}
 				select {
 				case <-ctx.Done():

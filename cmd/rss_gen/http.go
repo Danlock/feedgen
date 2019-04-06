@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -19,7 +18,7 @@ import (
 
 // handleHTTPServer starts configures and starts a HTTP server on the given
 // URL. It shuts down the server if any error is received in the error channel.
-func handleHTTPServer(ctx context.Context, u *url.URL, feedgenEndpoints *feedgen.Endpoints, wg *sync.WaitGroup, errc chan error, logger *log.Logger, debug bool) {
+func handleHTTPServer(ctx context.Context, u *url.URL, feedgenEndpoints *feedgen.Endpoints, wg *sync.WaitGroup, errc chan error, debug bool) {
 
 	// Provide the transport specific request decoder and response encoder.
 	// The goa http package has built-in support for JSON, XML and gob.
@@ -49,15 +48,14 @@ func handleHTTPServer(ctx context.Context, u *url.URL, feedgenEndpoints *feedgen
 		if debug {
 			handler = httpmdlwr.Debug(mux, os.Stdout)(handler)
 		}
-		handler = httpmdlwr.Log(&logger.GoaLogAdapter)(handler)
-		handler = httpmdlwr.RequestID()(handler)
+		handler = httpmdlwr.Log(&logger.GoaLogAdapter{})(handler)
+		handler = httpmdlwr.RequestID(middleware.UseRequestIDOption(true))(handler)
 	}
-
 	// Start HTTP server using default configuration, change the code to
 	// configure the server as required by your service.
 	srv := &http.Server{Addr: u.Host, Handler: handler}
 	for _, m := range feedgenServer.Mounts {
-		logger.Printf("HTTP %q mounted on %s %s", m.Method, m.Verb, m.Pattern)
+		logger.Infof(ctx, "HTTP %q mounted on %s %s", m.Method, m.Verb, m.Pattern)
 	}
 
 	(*wg).Add(1)
@@ -66,12 +64,12 @@ func handleHTTPServer(ctx context.Context, u *url.URL, feedgenEndpoints *feedgen
 
 		// Start HTTP server in a separate goroutine.
 		go func() {
-			logger.Printf("HTTP server listening on %q", u.Host)
+			logger.Infof(ctx, "HTTP server listening on %q", u.Host)
 			errc <- srv.ListenAndServe()
 		}()
 
 		<-ctx.Done()
-		logger.Printf("shutting down HTTP server at %q", u.Host)
+		logger.Infof(ctx, "shutting down HTTP server at %q", u.Host)
 
 		// Shutdown gracefully with a 30s timeout.
 		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)

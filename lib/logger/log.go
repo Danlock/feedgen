@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/danlock/go-rss-gen/lib"
 )
@@ -24,6 +25,10 @@ func AddLogCtx(ctx context.Context, s string) context.Context {
 	return context.WithValue(ctx, logCtxKey, oldLogCtx+" "+s)
 }
 
+func AddLogCtxf(ctx context.Context, msg string, vals ...interface{}) context.Context {
+	return AddLogCtx(ctx, fmt.Sprintf(msg, vals...))
+}
+
 func LogCtx(ctx context.Context) string {
 	oldLogCtxRaw := ctx.Value(logCtxKey)
 	if oldLogCtxRaw == nil {
@@ -36,8 +41,11 @@ func LogCtx(ctx context.Context) string {
 	return oldLogCtx
 }
 
-func SetupLogger() {
-	log.SetFlags(log.Ltime | log.LUTC | log.Lshortfile)
+func SetupLogger(prefix string) *log.Logger {
+	lgr := log.New(os.Stderr, prefix, log.Ltime|log.LUTC|log.Lshortfile)
+	log.SetFlags(lgr.Flags())
+	log.SetPrefix(lgr.Prefix())
+	return lgr
 }
 
 const calldepth = 4

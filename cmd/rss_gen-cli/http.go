@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	cli "github.com/danlock/go-rss-gen/example/gen/http/cli/rss_gen"
+	cli "github.com/danlock/go-rss-gen/gen/http/cli/rss_gen"
 	"goa.design/goa"
 	goahttp "goa.design/goa/http"
 )
