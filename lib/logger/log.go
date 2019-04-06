@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 
+	"goa.design/goa/middleware"
+
 	"github.com/danlock/go-rss-gen/lib"
 )
 
@@ -29,16 +31,24 @@ func AddLogCtxf(ctx context.Context, msg string, vals ...interface{}) context.Co
 	return AddLogCtx(ctx, fmt.Sprintf(msg, vals...))
 }
 
-func LogCtx(ctx context.Context) string {
-	oldLogCtxRaw := ctx.Value(logCtxKey)
-	if oldLogCtxRaw == nil {
+func getLogCtx(ctx context.Context) string {
+	logCtxRaw := ctx.Value(logCtxKey)
+	if logCtxRaw == nil {
 		return ""
 	}
-	oldLogCtx, ok := oldLogCtxRaw.(string)
+	logCtx, ok := logCtxRaw.(string)
 	if !ok {
-		panic("Got context with malformed log context value " + fmt.Sprintf("%+v", oldLogCtx))
+		panic("Got context with malformed log context value " + fmt.Sprintf("%+v", logCtx))
 	}
-	return oldLogCtx
+	reqIDStr := ""
+	reqID := ctx.Value(middleware.RequestIDKey)
+	if reqID != nil {
+		id, ok := reqID.(string)
+		if ok {
+			reqIDStr = "req_id:" + id + " "
+		}
+	}
+	return fmt.Sprintf("%s%s", reqIDStr, logCtx)
 }
 
 func SetupLogger(prefix string) *log.Logger {
@@ -51,7 +61,7 @@ func SetupLogger(prefix string) *log.Logger {
 const calldepth = 4
 
 func logf(ctx context.Context, prefix, msg string, vals ...interface{}) {
-	log.Output(calldepth, fmt.Sprintf("%s %s %s", prefix, fmt.Sprintf(msg, vals...), LogCtx(ctx)))
+	log.Output(calldepth, fmt.Sprintf("%s %s %s", prefix, fmt.Sprintf(msg, vals...), getLogCtx(ctx)))
 }
 
 func Warnf(ctx context.Context, msg string, vals ...interface{}) {

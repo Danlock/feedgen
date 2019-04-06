@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"runtime"
 	"sync"
 	"time"
 
@@ -32,7 +33,7 @@ func helpAndQuit() {
 func main() {
 	logger.SetupLogger(buildTag + " ")
 	ctx := context.Background()
-	logger.Infof(ctx, "Build Info: %s", buildInfo)
+	logger.Infof(ctx, "\n%s\nBuild Version: %s\n", buildInfo, runtime.Version())
 	// Define command line flags, add any other flag required to configure the
 	// service.
 	var (
