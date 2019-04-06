@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"strings"
 	"sync"
 	"time"
 
@@ -20,14 +19,20 @@ import (
 	"github.com/joho/godotenv"
 )
 
+var (
+	buildInfo = "NO INFO"
+	buildTag  = "NO TAG"
+)
+
 func helpAndQuit() {
 	flag.Usage()
 	os.Exit(0)
 }
 
 func main() {
-	logger.SetupLogger()
+	logger.SetupLogger(buildTag + " ")
 	ctx := context.Background()
+	logger.Infof(ctx, "Build Info: %s", buildInfo)
 	// Define command line flags, add any other flag required to configure the
 	// service.
 	var (
@@ -59,7 +64,7 @@ func main() {
 		errc <- fmt.Errorf("%s", <-c)
 	}()
 
-	ctx, cancel : = context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(ctx)
 	switch flag.Arg(0) {
 	case "poll":
 		freq, err := time.ParseDuration(lib.GetEnvOrWarn("RSS_GEN_POLL_FREQUENCY"))
@@ -68,29 +73,30 @@ func main() {
 			logger.Warnf(ctx, "Using default poll duration %s", freq.String())
 		}
 		releaseChan := feed.PollMUForReleases(ctx, freq)
-		select {
-		case releases := <-releaseChan:
-			logger.Infof(ctx,"Got these releases \n%+v",releases)
-		case err := <-errc:
-			logger.Printf("exiting (%v)", err)
-			cancel()
+		for {
+			select {
+			case releases := <-releaseChan:
+				logger.Infof(ctx, "Got these releases \n%+v", releases)
+			case err := <-errc:
+				logger.Infof(ctx, "exiting (%v)", err)
+				cancel()
+			}
 		}
 	case "api":
 		u, err := url.Parse(host)
 		if err != nil {
-			logger.Errf(ctx,"invalid URL %#v: %s", addr, err)
+			logger.Errf(ctx, "invalid URL %#v: %s", u.String(), err)
 			os.Exit(1)
 		}
 		var wg sync.WaitGroup
-		handleHTTPServer(ctx, u, feedgen.NewEndpoints(feed.New()), &wg, errc, logger, lib.GetEnvOrWarn("RSS_GEN_DEBUG") == "true")
+		handleHTTPServer(ctx, u, feedgen.NewEndpoints(feed.New()), &wg, errc, lib.GetEnvOrWarn("RSS_GEN_DEBUG") == "true")
 		// Wait for signal.
-		logger.Printf("exiting (%v)", <-errc)
+		logger.Infof(ctx, "exiting (%v)", <-errc)
 		// Send cancellation signal to the goroutines.
 		cancel()
 		wg.Wait()
-		logger.Println("exited")
 	default:
-		logger.Infof(ctx,"Available commands are poll,api")
+		logger.Infof(ctx, "Available commands are poll,api")
 		helpAndQuit()
 	}
 }
