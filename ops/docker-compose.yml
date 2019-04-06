@@ -1,0 +1,20 @@
+version: '3.7'
+volumes:
+  dbvol:
+
+services:
+  db:
+    image: cockroachdb/cockroach:v2.1.6
+    env_file: .env
+    volumes:
+      - dbvol:/cockroach/cockroach-data
+      - ./init-user-db.sh:/etc/cockroach/conf/init-user-db.sh
+    ports:
+      - 26257:26257
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1k"
+        max-file: "3"
+    command: shell -c '/etc/cockroach/conf/init-user-db.sh & /cockroach/cockroach start --insecure --logtostderr=INFO;'
