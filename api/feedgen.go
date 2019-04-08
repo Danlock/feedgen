@@ -1,7 +1,9 @@
-package feed
+package api
 
 import (
 	"context"
+
+	"github.com/danlock/go-rss-gen/db"
 
 	"github.com/danlock/go-rss-gen/gen/feedgen"
 	"github.com/danlock/go-rss-gen/lib/logger"
@@ -10,11 +12,12 @@ import (
 // feedgen service example implementation.
 // The example methods log the requests and return zero values.
 type fgService struct {
+	mangaStore db.MangaStorer
 }
 
 // New returns the feedgen service implementation.
-func New() feedgen.Service {
-	return &fgService{}
+func NewFeedSrvc(ms db.MangaStorer) feedgen.Service {
+	return &fgService{ms}
 }
 
 // Manga implements manga.

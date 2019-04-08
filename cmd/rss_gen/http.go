@@ -8,6 +8,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/danlock/go-rss-gen/db"
+
+	"github.com/danlock/go-rss-gen/api"
 	"github.com/danlock/go-rss-gen/gen/feedgen"
 	feedgensvr "github.com/danlock/go-rss-gen/gen/http/feedgen/server"
 	"github.com/danlock/go-rss-gen/lib/logger"
@@ -18,7 +21,7 @@ import (
 
 // handleHTTPServer starts configures and starts a HTTP server on the given
 // URL. It shuts down the server if any error is received in the error channel.
-func handleHTTPServer(ctx context.Context, u *url.URL, feedgenEndpoints *feedgen.Endpoints, wg *sync.WaitGroup, errc chan error, debug bool) {
+func handleHTTPServer(ctx context.Context, u *url.URL, wg *sync.WaitGroup, mangaStore db.MangaStorer) {
 
 	// Provide the transport specific request decoder and response encoder.
 	// The goa http package has built-in support for JSON, XML and gob.
@@ -37,7 +40,7 @@ func handleHTTPServer(ctx context.Context, u *url.URL, feedgenEndpoints *feedgen
 	// server packages contains code generated from the design which maps
 	// the service input and output data structures to HTTP requests and
 	// responses.
-	feedgenServer := feedgensvr.New(feedgenEndpoints, mux, dec, enc, errorHandler())
+	feedgenServer := feedgensvr.New(feedgen.NewEndpoints(api.NewFeedSrvc(mangaStore)), mux, dec, enc, errorHandler())
 	// Configure the mux.
 	feedgensvr.Mount(mux, feedgenServer)
 
@@ -45,11 +48,12 @@ func handleHTTPServer(ctx context.Context, u *url.URL, feedgenEndpoints *feedgen
 	// here apply to all the service endpoints.
 	var handler http.Handler = mux
 	{
-		if debug {
+		if logger.IsDebug() {
 			handler = httpmdlwr.Debug(mux, os.Stdout)(handler)
 		}
-		handler = httpmdlwr.Log(&logger.GoaLogAdapter{})(handler)
+		handler = httpmdlwr.PopulateRequestContext()(handler)
 		handler = httpmdlwr.RequestID(middleware.UseRequestIDOption(true))(handler)
+		handler = httpmdlwr.Log(&logger.GoaLogAdapter{})(handler)
 	}
 	// Start HTTP server using default configuration, change the code to
 	// configure the server as required by your service.
@@ -58,23 +62,17 @@ func handleHTTPServer(ctx context.Context, u *url.URL, feedgenEndpoints *feedgen
 		logger.Infof(ctx, "HTTP %q mounted on %s %s", m.Method, m.Verb, m.Pattern)
 	}
 
-	(*wg).Add(1)
+	logger.Infof(ctx, "HTTP server listening on %q", u.Host)
+	wg.Add(1)
+	// Spin off goroutine for http server
+	go logger.Errf(ctx, "Server has returned with: %+v", srv.ListenAndServe())
+	// Spin off goroutine for server graceful shutdown
 	go func() {
-		defer (*wg).Done()
-
-		// Start HTTP server in a separate goroutine.
-		go func() {
-			logger.Infof(ctx, "HTTP server listening on %q", u.Host)
-			errc <- srv.ListenAndServe()
-		}()
-
+		defer wg.Done()
 		<-ctx.Done()
-		logger.Infof(ctx, "shutting down HTTP server at %q", u.Host)
-
-		// Shutdown gracefully with a 30s timeout.
-		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		logger.Infof(ctx, "gracefully shutting down HTTP server at %q", u.Host)
+		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
-
 		srv.Shutdown(ctx)
 	}()
 }

@@ -1,15 +1,18 @@
-package feed
+package scrape
 
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/antchfx/htmlquery"
+	"github.com/danlock/go-rss-gen/lib"
 	"github.com/danlock/go-rss-gen/lib/logger"
 	"github.com/pkg/errors"
 	"golang.org/x/net/html"
@@ -86,14 +89,34 @@ func parseMUDailyReleases(table *html.Node) ([]MangaRelease, error) {
 	return allMangaReleases[1:], nil
 }
 
-func getAndParseMUMangaPage(id int) (m MangaInfo, err error) {
-	root, err := htmlquery.LoadURL(fmt.Sprintf(muInfoURLFormat, id))
+const ErrInvalidMUID lib.SentinelError = "Invalid MUID"
+
+func GetAndParseMUMangaPage(ctx context.Context, id int) (m MangaInfo, err error) {
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf(muInfoURLFormat, id), nil)
 	if err != nil {
+		return m, errors.Wrap(err, "Failed creating request")
+	}
+	req = req.WithContext(ctx)
+	// MangaUpdates doesn't seem to reliably advertise Keep-Alive connection status and Go doesnt handle that very well, so close every request
+	req.Close = true
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return m, errors.Wrap(err, "Failed sending request")
+	}
+	root, err := htmlquery.Parse(resp.Body)
+	if err != nil {
+		resp.Body.Close()
 		return m, errors.Wrap(err, "Failed getting page")
 	}
+	resp.Body.Close()
 	seriesInfo := htmlquery.FindOne(root, "/html/body/div[2]/div[2]/div[2]/div[2]/div/div[2]/div[1]")
 	if seriesInfo == nil {
-		return m, errors.New("Failed to parse info page")
+		errorInfo := htmlquery.FindOne(root, "/html/body/div[2]/div[2]/div[2]/div[2]/div/div/div/div[2]/div")
+		if errorInfo != nil && strings.Contains(htmlquery.InnerText(errorInfo), "You specified an invalid series id.") {
+			return m, ErrInvalidMUID
+		} else {
+			return m, errors.New("Failed to parse info page")
+		}
 	}
 	mainTitleNode := htmlquery.FindOne(seriesInfo, "/div[1]/span[1]")
 	if mainTitleNode == nil {
@@ -121,10 +144,13 @@ func getAndParseMUMangaPage(id int) (m MangaInfo, err error) {
 		assocNameNode = assocNameNode.NextSibling
 	}
 	releasesNode := htmlquery.FindOne(seriesInfo, "/div[3]/div[12]")
-	if releasesNode == nil || releasesNode.FirstChild == nil || releasesNode.FirstChild.NextSibling == nil || releasesNode.FirstChild.NextSibling.NextSibling == nil {
+	if releasesNode == nil {
 		return m, errors.New("Failed to get releases")
 	}
-	m.LatestRelease = strings.Split(htmlquery.InnerText(releasesNode), " by ")[0]
+	releaseText := htmlquery.InnerText(releasesNode)
+	if !strings.Contains(releaseText, "N/A") {
+		m.LatestRelease = strings.Split(releaseText, " by ")[0]
+	}
 	return m, nil
 }
 
@@ -134,6 +160,7 @@ func QueryMUSeriesRange(ctx context.Context, start, end int) ([]MangaInfo, error
 	go func() {
 		defer close(idChan)
 		for i := start; i < end; i++ {
+			time.Sleep(500 * time.Millisecond)
 			select {
 			case idChan <- i:
 			case <-ctx.Done():
@@ -141,23 +168,24 @@ func QueryMUSeriesRange(ctx context.Context, start, end int) ([]MangaInfo, error
 				return
 			}
 		}
+		logger.Debugf(ctx, "Finished sending ids to idChan")
 	}()
 	// Create worker goroutines that do work on each id and end on chan close
 	infoChan := make(chan MangaInfo)
-	const maxGoroutines = 10
+	var maxGoroutines = runtime.NumCPU()
 	wg := &sync.WaitGroup{}
 	wg.Add(maxGoroutines)
 	for i := 0; i < maxGoroutines; i++ {
 		go func() {
+			defer wg.Done()
 			for id := range idChan {
-				info, err := getAndParseMUMangaPage(id)
-				if err != nil {
+				info, err := GetAndParseMUMangaPage(ctx, id)
+				if err != nil && err != ErrInvalidMUID {
 					logger.Errf(ctx, "Failure on %d err:%+v", id, err)
 					continue
 				}
 				infoChan <- info
 			}
-			wg.Done()
 		}()
 	}
 	// Create closer goroutine that waits for workers to complete then closes infoChan

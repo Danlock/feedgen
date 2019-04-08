@@ -17,6 +17,7 @@ var _ = dsl.Service("feedgen", func() {
 		dsl.Payload(func() {
 			dsl.Attribute("titles", dsl.ArrayOf(dsl.String), "List of manga titles to subscribe to", func() {
 				dsl.MinLength(1)
+				dsl.MaxLength(65535)
 			})
 			dsl.Required("titles")
 		})

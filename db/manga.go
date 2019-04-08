@@ -5,9 +5,8 @@ import (
 	"fmt"
 
 	"github.com/danlock/go-rss-gen/lib/logger"
+	"github.com/danlock/go-rss-gen/scrape"
 	"github.com/pkg/errors"
-
-	"github.com/danlock/go-rss-gen/feed"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -16,8 +15,10 @@ import (
 type MangaStorer interface {
 	FindMangaByTitlesIntoMangaTitlesSlice(context.Context, []string) ([]MangaTitle, error)
 	FindMangaByTitles(context.Context, []string, interface{}) error
-	UpsertManga(context.Context, []feed.MangaInfo) error
-	UpsertRelease(context.Context, []feed.MangaRelease) error
+	FindReleasesByTitles(context.Context, []string, interface{}) error
+	UpsertManga(context.Context, []scrape.MangaInfo) error
+	UpsertRelease(context.Context, []scrape.MangaRelease) error
+	FilterOutReleasesWithoutMangaInDB(context.Context, []scrape.MangaRelease) ([]scrape.MangaRelease, error)
 }
 
 type mangaStore struct {
@@ -28,11 +29,11 @@ func NewMangaStore(db *sqlx.DB) MangaStorer {
 	return &mangaStore{db}
 }
 
-func (m *mangaStore) UpsertManga(ctx context.Context, manga []feed.MangaInfo) error {
+func (m *mangaStore) UpsertManga(ctx context.Context, manga []scrape.MangaInfo) error {
 	mangaQuery := `INSERT INTO manga (muid, latest_release, display_title) VALUES
 %s
 ON CONFLICT (muid)
-DO UPDATE SET latest_release = excluded.latest_release;`
+DO NOTHING;`
 	titleQuery := "UPSERT INTO mangatitle (muid,title) VALUES %s;"
 
 	muidReleaseArray := make([]interface{}, 0, len(manga)*2)
@@ -63,14 +64,19 @@ DO UPDATE SET latest_release = excluded.latest_release;`
 	}
 	titleQuery = fmt.Sprintf(titleQuery, titleValues)
 	titleQuery = m.db.Rebind(titleQuery)
-	if _, err := m.db.ExecContext(ctx, titleQuery, muidTitleArray...); err != nil {
+	if res, err := m.db.ExecContext(ctx, titleQuery, muidTitleArray...); err != nil {
 		logger.Errf(ctx, "Failed upserting titles with %s\n with error %s", titleQuery, ErrDetails(err))
 		return errors.WithStack(err)
+	} else {
+		num, _ := res.RowsAffected()
+		if num > 0 {
+			logger.Infof(ctx, "Upserted %d rows of manga", num)
+		}
 	}
 	return nil
 }
 
-func (m *mangaStore) UpsertRelease(ctx context.Context, releases []feed.MangaRelease) error {
+func (m *mangaStore) UpsertRelease(ctx context.Context, releases []scrape.MangaRelease) error {
 	releaseQuery := `
 	INSERT INTO mangarelease (muid, release, translators)
 		%s
@@ -78,33 +84,20 @@ func (m *mangaStore) UpsertRelease(ctx context.Context, releases []feed.MangaRel
 	DO NOTHING;
 	`
 	releaseValues := "VALUES"
-	releaseTitlesWithMissingMUID := make([]string, 0)
-	releasesWithMissingMUID := make([]feed.MangaRelease, 0)
 	valuesArr := make([]interface{}, 0, len(releases)*3)
+	releaesMissingMUIDs := 0
 	for _, r := range releases {
-		if r.MUID < 1 {
-			releaseTitlesWithMissingMUID = append(releaseTitlesWithMissingMUID, r.Title)
-			releasesWithMissingMUID = append(releasesWithMissingMUID, r)
-			continue
-		}
-		valuesArr = append(valuesArr, r.MUID, r.Release, r.Translators)
-		releaseValues += " (?,?,?),"
-	}
-	foundReleases, err := m.FindMangaByTitlesIntoMangaTitlesSlice(ctx, releaseTitlesWithMissingMUID)
-	if err != nil {
-		return err
-	}
-	if len(foundReleases) != len(releaseTitlesWithMissingMUID) {
-		logger.Errf(ctx, "Could not find all MUID for all releases, titles missing muids: %+v found releases: %+v", releaseTitlesWithMissingMUID, foundReleases)
-	}
-	for _, r := range releasesWithMissingMUID {
-		for _, m := range foundReleases {
-			if r.Title == m.Title {
-				valuesArr = append(valuesArr, m.MUID, r.Release, r.Translators)
-				releaseValues += " (?,?,?),"
-			}
+		if r.MUID > 0 {
+			valuesArr = append(valuesArr, r.MUID, r.Release, r.Translators)
+			releaseValues += " (?,?,?),"
+		} else {
+			releaesMissingMUIDs++
 		}
 	}
+	if releaesMissingMUIDs > 0 {
+		logger.Errf(ctx, "Skipping %d releases missing MUIDs", releaesMissingMUIDs)
+	}
+	releaseValues = releaseValues[:len(releaseValues)-1]
 	releaseQuery = fmt.Sprintf(releaseQuery, releaseValues)
 	releaseQuery = m.db.Rebind(releaseQuery)
 	if _, err := m.db.ExecContext(ctx, releaseQuery, valuesArr...); err != nil {
@@ -127,21 +120,84 @@ func (m *mangaStore) FindMangaByTitlesIntoMangaTitlesSlice(ctx context.Context, 
 	return manga, nil
 }
 func (m *mangaStore) FindMangaByTitles(ctx context.Context, titles []string, outPtr interface{}) error {
-	titleQuery := `
-	SELECT muid,title FROM mangatitle WHERE title IN (%s);
+	titleQueryRaw := `
+	SELECT muid,title FROM mangatitle WHERE title IN (?);
 	`
-	titleValues := ""
-	titlesArr := make([]interface{}, 0, len(titles))
-	for _, t := range titles {
-		titleValues += "'?',"
-		titlesArr = append(titlesArr, t)
+	titleQuery, args, err := sqlx.In(titleQueryRaw, titles)
+	if err != nil {
+		return errors.Wrap(err, "Failed creating IN query")
 	}
-	titleValues = titleValues[:len(titleValues)-1]
-	titleQuery = fmt.Sprintf(titleQuery, titleValues)
 	titleQuery = m.db.Rebind(titleQuery)
-	if err := m.db.SelectContext(ctx, outPtr, titleQuery, titlesArr...); err != nil {
+	if err := m.db.SelectContext(ctx, outPtr, titleQuery, args...); err != nil {
 		logger.Errf(ctx, "Failed getting titles with %s err:%+v", titleQuery, ErrDetails(err))
 		return errors.WithStack(err)
 	}
 	return nil
+}
+
+func (m *mangaStore) FindReleasesByTitles(ctx context.Context, titles []string, outPtr interface{}) error {
+	releaseQueryRaw := `
+	SELECT mangarelease.muid, mangarelease.release, mangarelease.translators, mangarelease.created_at, manga.display_title
+		FROM mangarelease
+		INNER JOIN mangatitle ON mangatitle.muid=mangarelease.muid
+		INNER JOIN manga ON mangatitle.muid=manga.muid
+		INNER JOIN (
+			SELECT muid, max(created_at) most_recent
+					FROM mangarelease
+					GROUP BY muid
+		) mr ON manga.muid = mr.muid AND mangarelease.created_at = mr.most_recent
+	WHERE mangatitle.title IN (?);`
+	releaseQuery, args, err := sqlx.In(releaseQueryRaw, titles)
+	if err != nil {
+		return errors.Wrap(err, "Failed creating IN query")
+	}
+	releaseQuery = m.db.Rebind(releaseQuery)
+	if err := m.db.SelectContext(ctx, outPtr, releaseQuery, args); err != nil {
+		logger.Errf(ctx, "Failed to find manga releases by titles with %s err: %s", releaseQuery, ErrDetails(err))
+		return errors.WithStack(err)
+	}
+	return nil
+}
+
+func (m *mangaStore) FilterOutReleasesWithoutMangaInDB(ctx context.Context, releases []scrape.MangaRelease) ([]scrape.MangaRelease, error) {
+	MUIDs := make([]interface{}, 0, len(releases))
+	releasesMissingMUIDs := 0
+	for _, r := range releases {
+		if r.MUID > 0 {
+			MUIDs = append(MUIDs, r.MUID)
+		} else {
+			releasesMissingMUIDs++
+		}
+	}
+	muidQuery, args, err := sqlx.In("SELECT muid FROM manga WHERE muid IN (?);", MUIDs)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed creating IN query")
+	}
+	foundMUIDs := make([]int, 0, len(releases))
+	muidQuery = m.db.Rebind(muidQuery)
+	if err := m.db.Select(&foundMUIDs, muidQuery, args...); err != nil {
+		logger.Errf(ctx, "Failed to find manga from muids with %s err: %s", muidQuery, ErrDetails(err))
+		return nil, errors.WithStack(err)
+	}
+	// If we found all of the releases then we're done
+	if len(foundMUIDs) == len(releases) {
+		return nil, nil
+	}
+	newReleases := make([]scrape.MangaRelease, 0)
+	for _, r := range releases {
+		if r.MUID == 0 {
+			continue
+		}
+		found := false
+		for _, id := range foundMUIDs {
+			if r.MUID == id {
+				found = true
+				break
+			}
+		}
+		if !found {
+			newReleases = append(newReleases, r)
+		}
+	}
+	return newReleases, nil
 }

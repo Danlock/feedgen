@@ -63,32 +63,26 @@ func logf(ctx context.Context, prefix, msg string, vals ...interface{}) {
 }
 
 func Warnf(ctx context.Context, msg string, vals ...interface{}) {
-	logf(ctx, "[WARN]", msg, vals...)
+	logf(ctx, "[WRN]", msg, vals...)
 }
 func Infof(ctx context.Context, msg string, vals ...interface{}) {
-	logf(ctx, "[INFO]", msg, vals...)
+	logf(ctx, "[INF]", msg, vals...)
 }
 func Errf(ctx context.Context, msg string, vals ...interface{}) {
-	logf(ctx, "[ERROR]", msg, vals...)
+	logf(ctx, "[ERR]", msg, vals...)
 }
-
-var (
-	isDebug      = false
-	checkedDebug = false
-)
 
 func Debugf(ctx context.Context, msg string, vals ...interface{}) {
-	if !checkedDebug {
-		checkedDebug = true
-		isDebug = IsDebug()
-	}
-	if isDebug {
-		logf(ctx, "[DEBUG]", msg, vals...)
+	if IsDebug() {
+		logf(ctx, "[DBG]", msg, vals...)
 	}
 }
 
+// isDebug is set during build time using build flags, which can only be strings for some reason
+var isDebug = "t"
+
 func IsDebug() bool {
-	return os.Getenv("RSS_GEN_DEBUG") == "true"
+	return isDebug == "t"
 }
 
 type GoaLogAdapter struct{}

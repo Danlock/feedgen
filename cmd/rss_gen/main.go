@@ -7,12 +7,15 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"path"
 	"runtime"
+	"runtime/pprof"
 	"strconv"
 	"sync"
 	"time"
 
 	"github.com/danlock/go-rss-gen/db"
+	"github.com/danlock/go-rss-gen/scrape"
 
 	"github.com/jmoiron/sqlx"
 
@@ -20,8 +23,6 @@ import (
 
 	"github.com/danlock/go-rss-gen/lib/logger"
 
-	"github.com/danlock/go-rss-gen/feed"
-	"github.com/danlock/go-rss-gen/gen/feedgen"
 	"github.com/joho/godotenv"
 )
 
@@ -31,7 +32,12 @@ var (
 )
 
 func helpAndQuit() {
-	fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:\n", os.Args[0])
+	fmt.Fprintf(flag.CommandLine.Output(), `
+Usage of %s:
+	poll :	Polls sites for updates with the given frequency in go time.Duration format
+	populate-db:	Scrapes the given range of ids from MangaUpdates
+	api:	serves an API on the URL provided (defaulting to http://localhost:80) with RSS, Atom or JSON Feed endpoints.
+`, os.Args[0])
 	flag.PrintDefaults()
 	os.Exit(0)
 }
@@ -39,15 +45,14 @@ func helpAndQuit() {
 func main() {
 	logger.SetupLogger(buildTag + " ")
 	ctx := context.Background()
-	logger.Infof(ctx, "\n%s\nBuild Version: %s\n", buildInfo, runtime.Version())
+	logger.Infof(ctx, "%s Built With: %s Debug Mode: %t", buildInfo, runtime.Version(), logger.IsDebug())
 	// Define command line flags, add any other flag required to configure the
 	// service.
 	var (
 		dotenvLocation string
 		help           bool
-		host           string
 	)
-	flag.StringVar(&host, "host", "http://localhost:80", "Server host ")
+	flag.Usage = helpAndQuit
 	flag.StringVar(&dotenvLocation, "e", "./ops/.env", "Location of .env file with environment variables in KEY=VALUE format")
 	flag.BoolVar(&help, "h", false, "Show help")
 	flag.Parse()
@@ -65,38 +70,35 @@ func main() {
 		os.Exit(1)
 	}
 	mangaStore := db.NewMangaStore(crdb)
-	// Create channel used by both the signal handler and server goroutines
-	// to notify the main goroutine when to stop the server.
-	errc := make(chan error)
 
 	// Setup interrupt handler. This optional step configures the process so
 	// that SIGINT and SIGTERM signals cause the services to stop gracefully.
+	ctx, cancel := context.WithCancel(ctx)
 	go func() {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, os.Interrupt)
-		errc <- fmt.Errorf("%s", <-c)
+		logger.Infof(ctx, "Received signal %s, shutting down...", <-c)
+		if logger.IsDebug() {
+			f, err := os.Create(fmt.Sprintf("%s/%s_goroutine_trace.txt", os.TempDir(), path.Base(os.Args[0])))
+			if err == nil {
+				logger.Debugf(ctx, "Writing pprof profiles to %s", f.Name())
+				pprof.Lookup("goroutine").WriteTo(f, 2)
+			} else {
+				logger.Debugf(ctx, "Failed to write pprof profiles err: %+v", err)
+			}
+		}
+		cancel()
 	}()
 
-	ctx, cancel := context.WithCancel(ctx)
 	switch flag.Arg(0) {
 	case "poll":
-		freq, err := time.ParseDuration(lib.GetEnvOrWarn("RSS_GEN_POLL_FREQUENCY"))
+		freq, err := time.ParseDuration(flag.Arg(1))
 		if err != nil {
-			freq = 6 * time.Hour
-			logger.Warnf(ctx, "Using default poll duration %s", freq.String())
+			logger.Errf(ctx, "poll takes in 1 arg, the duration between each polling attempt. 6h is recommended.")
+			os.Exit(1)
 		}
-		releaseChan := feed.PollMUForReleases(ctx, freq)
-		for {
-			select {
-			case releases := <-releaseChan:
-				logger.Debugf(ctx, "Got these releases \n%+v", releases)
-				if err := mangaStore.UpsertRelease(ctx, releases); err != nil {
-					logger.Errf(ctx, "Failed to upsert manga releases err:%+v", err)
-				}
-			case err := <-errc:
-				logger.Infof(ctx, "exiting (%v)", err)
-				cancel()
-			}
+		if handlePoll(ctx, mangaStore, freq) != nil {
+			os.Exit(1)
 		}
 	case "populate-db":
 		start, serr := strconv.Atoi(flag.Arg(1))
@@ -105,34 +107,91 @@ func main() {
 			logger.Errf(ctx, "populate-db takes in two args, the start and end range of the MangaUpdate manga ids to scrape from.")
 			os.Exit(1)
 		}
-		before := time.Now()
-		manga, err := feed.QueryMUSeriesRange(ctx, start, end)
-		if err != nil {
-			logger.Errf(ctx, "Failed to query Mangaupdates err: %+v", err)
+		if handleDBPopulation(ctx, mangaStore, start, end) != nil {
 			os.Exit(1)
 		}
-		logger.Infof(ctx, "Took %s to get manga between %d and %d", time.Since(before).String(), start, end)
-		logger.Debugf(ctx, "Got these manga\n%+v", manga)
-		if err := mangaStore.UpsertManga(ctx, manga); err != nil {
-			logger.Errf(ctx, "Failed to upserting manga: err %+v", err)
-			os.Exit(1)
-		}
-		cancel()
 	case "api":
-		u, err := url.Parse(host)
+		u, err := url.Parse(flag.Arg(1))
 		if err != nil {
-			logger.Errf(ctx, "invalid URL %#v: %s", u.String(), err)
-			os.Exit(1)
+			defaultURL := "http://localhost:80"
+			logger.Errf(ctx, "invalid URL %s: %s, using default %s", flag.Arg(1), err, defaultURL)
+			if u, err = url.Parse(defaultURL); err != nil {
+				panic("defaultURL is invalid URL")
+			}
 		}
 		var wg sync.WaitGroup
-		handleHTTPServer(ctx, u, feedgen.NewEndpoints(feed.New()), &wg, errc, logger.IsDebug())
-		// Wait for signal.
-		logger.Infof(ctx, "exiting (%v)", <-errc)
-		// Send cancellation signal to the goroutines.
-		cancel()
+		handleHTTPServer(ctx, u, &wg, mangaStore)
+		// Wait for shutdown.
 		wg.Wait()
 	default:
 		logger.Infof(ctx, "Available commands are poll,api,populate-db")
 		helpAndQuit()
 	}
+}
+
+func handleDBPopulation(ctx context.Context, mangaStore db.MangaStorer, start, end int) error {
+	before := time.Now()
+	manga, err := scrape.QueryMUSeriesRange(ctx, start, end)
+	if err != nil {
+		logger.Errf(ctx, "Failed to query Mangaupdates err: %+v", err)
+		return err
+	}
+	logger.Infof(ctx, "Took %s to get %d manga between %d and %d", time.Since(before).String(), len(manga), start, end)
+	select {
+	case <-ctx.Done():
+		logger.Infof(ctx, "Context closed, shutting down populate-db...")
+		return ctx.Err()
+	default:
+	}
+	if len(manga) == 0 {
+		return nil
+	}
+	if err := mangaStore.UpsertManga(ctx, manga); err != nil {
+		logger.Errf(ctx, "Failed to upserting manga: err %+v", err)
+		return err
+	}
+	return nil
+}
+
+func handlePoll(ctx context.Context, mangaStore db.MangaStorer, freq time.Duration) error {
+	// Scrape new releases out of MU
+	releaseChan := scrape.PollMUForReleases(ctx, freq)
+	for {
+		select {
+		case releases, running := <-releaseChan:
+			if !running {
+				return nil
+			}
+			// Each new batch of releases may include new manga not in the db, filter them out
+			newReleases, err := mangaStore.FilterOutReleasesWithoutMangaInDB(ctx, releases)
+			if err != nil {
+				logger.Errf(ctx, "Failed to filter out new manga releases!")
+			}
+			// Scrape the info page for each new manga found, skipping them if the parse fails, and place them in db
+			newRelLen := len(newReleases)
+			if newRelLen > 0 {
+				logger.Infof(ctx, "Found %d new titles, scraping their pages...", newRelLen)
+				manga := make([]scrape.MangaInfo, 0, newRelLen)
+				for _, r := range newReleases {
+					m, err := scrape.GetAndParseMUMangaPage(ctx, r.MUID)
+					if err != nil && err != scrape.ErrInvalidMUID {
+						logger.Errf(ctx, "Failed to scrape manga page for MUID %d err:%+v", r.MUID, err)
+						continue
+					}
+					manga = append(manga, m)
+				}
+				if err := mangaStore.UpsertManga(ctx, manga); err != nil {
+					logger.Errf(ctx, "Failed to upsert manga for new releases err: %+v", err)
+				}
+			}
+			// Finally upsert releases in DB in case there are duplicates
+			if err := mangaStore.UpsertRelease(ctx, releases); err != nil {
+				logger.Errf(ctx, "Failed to upsert manga releases err:%+v", err)
+			}
+		case <-ctx.Done():
+			logger.Infof(ctx, "exiting (%v)", ctx.Err())
+			return ctx.Err()
+		}
+	}
+	return nil
 }
