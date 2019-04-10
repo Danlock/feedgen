@@ -230,25 +230,30 @@ func QueryLast2DaysOfMUReleases() ([]MangaRelease, error) {
 func PollMUForReleases(ctx context.Context, freq time.Duration) <-chan []MangaRelease {
 	out := make(chan []MangaRelease)
 	timer := time.NewTicker(freq)
+	pollFunc := func() {
+		releases, err := QueryLast2DaysOfMUReleases()
+		if err != nil {
+			logger.Errf(ctx, "Failed to get releases from MangaUpdates! %+v", err)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case out <- releases:
+		}
+	}
 	go func() {
 		defer func() {
 			close(out)
 			timer.Stop()
 		}()
+		// Poll immediately on startup instead of waiting for poll duration
+		pollFunc()
 		for {
 			select {
 			case <-ctx.Done():
 				return
 			case <-timer.C:
-				releases, err := QueryLast2DaysOfMUReleases()
-				if err != nil {
-					logger.Errf(ctx, "Failed to get releases from MangaUpdates! %+v", err)
-				}
-				select {
-				case <-ctx.Done():
-					return
-				case out <- releases:
-				}
+				pollFunc()
 			}
 		}
 	}()

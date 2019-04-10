@@ -4,6 +4,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
+	netpprof "net/http/pprof"
 	"net/url"
 	"os"
 	"os/signal"
@@ -88,6 +90,19 @@ func main() {
 			}
 		}
 		cancel()
+	}()
+
+	// Spin off http debug pprof server for realtime
+	go func() {
+		mux := http.NewServeMux()
+		mux.HandleFunc("/debug/pprof/", netpprof.Index)
+		mux.HandleFunc("/debug/pprof/cmdline", netpprof.Cmdline)
+		mux.HandleFunc("/debug/pprof/profile", netpprof.Profile)
+		mux.HandleFunc("/debug/pprof/symbol", netpprof.Symbol)
+		mux.HandleFunc("/debug/pprof/trace", netpprof.Trace)
+		debugURL := "localhost:18080"
+		logger.Infof(ctx, "Serviing runtime profiling server on %s...", debugURL)
+		http.ListenAndServe(debugURL, mux)
 	}()
 
 	switch flag.Arg(0) {

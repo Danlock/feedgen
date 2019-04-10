@@ -40,11 +40,12 @@ DO NOTHING;`
 	mangaValues := ""
 	muidTitleArray := make([]interface{}, 0)
 	titleValues := ""
+	seenMUID := make(map[int]struct{})
 	for _, m := range manga {
-		if m.MUID < 1 {
-			logger.Errf(ctx, "Skipping upserting corrupted manga %+v", m)
+		if _, seen := seenMUID[m.MUID]; seen || m.MUID < 1 {
 			continue
 		}
+		seenMUID[m.MUID] = struct{}{}
 		mangaValues += fmt.Sprintf(" (?,?,?),")
 		muidReleaseArray = append(muidReleaseArray, m.MUID, m.LatestRelease, m.DisplayTitle)
 		for _, t := range m.Titles {
@@ -58,20 +59,20 @@ DO NOTHING;`
 
 	mangaQuery = fmt.Sprintf(mangaQuery, mangaValues)
 	mangaQuery = m.db.Rebind(mangaQuery)
-	if _, err := m.db.ExecContext(ctx, mangaQuery, muidReleaseArray...); err != nil {
+	if res, err := m.db.ExecContext(ctx, mangaQuery, muidReleaseArray...); err != nil {
 		logger.Errf(ctx, "Failed upserting manga with %s\n with error %s", mangaQuery, ErrDetails(err))
-		return errors.WithStack(err)
-	}
-	titleQuery = fmt.Sprintf(titleQuery, titleValues)
-	titleQuery = m.db.Rebind(titleQuery)
-	if res, err := m.db.ExecContext(ctx, titleQuery, muidTitleArray...); err != nil {
-		logger.Errf(ctx, "Failed upserting titles with %s\n with error %s", titleQuery, ErrDetails(err))
 		return errors.WithStack(err)
 	} else {
 		num, _ := res.RowsAffected()
 		if num > 0 {
 			logger.Infof(ctx, "Upserted %d rows of manga", num)
 		}
+	}
+	titleQuery = fmt.Sprintf(titleQuery, titleValues)
+	titleQuery = m.db.Rebind(titleQuery)
+	if _, err := m.db.ExecContext(ctx, titleQuery, muidTitleArray...); err != nil {
+		logger.Errf(ctx, "Failed upserting titles with %s\n with error %s", titleQuery, ErrDetails(err))
+		return errors.WithStack(err)
 	}
 	return nil
 }
@@ -86,17 +87,22 @@ func (m *mangaStore) UpsertRelease(ctx context.Context, releases []scrape.MangaR
 	releaseValues := "VALUES"
 	valuesArr := make([]interface{}, 0, len(releases)*3)
 	releaesMissingMUIDs := 0
+	seenMUID := make(map[int]struct{})
 	for _, r := range releases {
-		if r.MUID > 0 {
-			valuesArr = append(valuesArr, r.MUID, r.Release, r.Translators)
-			releaseValues += " (?,?,?),"
-		} else {
+		if _, seen := seenMUID[r.MUID]; seen || r.MUID < 1 {
 			releaesMissingMUIDs++
+			continue
 		}
+		valuesArr = append(valuesArr, r.MUID, r.Release, r.Translators)
+		releaseValues += " (?,?,?),"
+		seenMUID[r.MUID] = struct{}{}
+
 	}
 	if releaesMissingMUIDs > 0 {
 		logger.Errf(ctx, "Skipping %d releases missing MUIDs", releaesMissingMUIDs)
 	}
+	logger.Debugf(ctx, "Preparing to upserting %d releases", len(seenMUID))
+
 	releaseValues = releaseValues[:len(releaseValues)-1]
 	releaseQuery = fmt.Sprintf(releaseQuery, releaseValues)
 	releaseQuery = m.db.Rebind(releaseQuery)
@@ -104,6 +110,7 @@ func (m *mangaStore) UpsertRelease(ctx context.Context, releases []scrape.MangaR
 		logger.Errf(ctx, "Failed to get upsert release with query %s and err: %+v", releaseQuery, ErrDetails(err))
 		return errors.WithStack(err)
 	}
+	logger.Debugf(ctx, "Upserted %d releases", len(valuesArr)/3)
 	return nil
 }
 
