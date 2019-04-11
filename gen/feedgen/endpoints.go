@@ -15,19 +15,22 @@ import (
 
 // Endpoints wraps the "feedgen" service endpoints.
 type Endpoints struct {
-	Manga goa.Endpoint
+	Manga     goa.Endpoint
+	ViewManga goa.Endpoint
 }
 
 // NewEndpoints wraps the methods of the "feedgen" service with endpoints.
 func NewEndpoints(s Service) *Endpoints {
 	return &Endpoints{
-		Manga: NewMangaEndpoint(s),
+		Manga:     NewMangaEndpoint(s),
+		ViewManga: NewViewMangaEndpoint(s),
 	}
 }
 
 // Use applies the given middleware to all the "feedgen" service endpoints.
 func (e *Endpoints) Use(m func(goa.Endpoint) goa.Endpoint) {
 	e.Manga = m(e.Manga)
+	e.ViewManga = m(e.ViewManga)
 }
 
 // NewMangaEndpoint returns an endpoint function that calls the method "manga"
@@ -36,5 +39,14 @@ func NewMangaEndpoint(s Service) goa.Endpoint {
 	return func(ctx context.Context, req interface{}) (interface{}, error) {
 		p := req.(*MangaPayload)
 		return s.Manga(ctx, p)
+	}
+}
+
+// NewViewMangaEndpoint returns an endpoint function that calls the method
+// "viewManga" of service "feedgen".
+func NewViewMangaEndpoint(s Service) goa.Endpoint {
+	return func(ctx context.Context, req interface{}) (interface{}, error) {
+		p := req.(*ViewMangaPayload)
+		return s.ViewManga(ctx, p)
 	}
 }

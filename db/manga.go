@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/danlock/go-rss-gen/lib/logger"
 	"github.com/danlock/go-rss-gen/scrape"
@@ -142,6 +143,14 @@ func (m *mangaStore) FindMangaByTitles(ctx context.Context, titles []string, out
 	return nil
 }
 
+type DBMangaRelease struct {
+	MUID        int
+	Title       string `db:"display_title"`
+	Release     string
+	Translators string
+	CreatedAt   time.Time `db:"created_at"`
+}
+
 func (m *mangaStore) FindReleasesByTitles(ctx context.Context, titles []string, outPtr interface{}) error {
 	releaseQueryRaw := `
 	SELECT mangarelease.muid, mangarelease.release, mangarelease.translators, mangarelease.created_at, manga.display_title
@@ -149,17 +158,21 @@ func (m *mangaStore) FindReleasesByTitles(ctx context.Context, titles []string, 
 		INNER JOIN mangatitle ON mangatitle.muid=mangarelease.muid
 		INNER JOIN manga ON mangatitle.muid=manga.muid
 		INNER JOIN (
-			SELECT muid, max(created_at) most_recent
+			SELECT muid, max(mangarelease.created_at) most_recent
 					FROM mangarelease
 					GROUP BY muid
 		) mr ON manga.muid = mr.muid AND mangarelease.created_at = mr.most_recent
 	WHERE mangatitle.title IN (?);`
-	releaseQuery, args, err := sqlx.In(releaseQueryRaw, titles)
+	titleVals := make([]interface{}, 0, len(titles))
+	for _, t := range titles {
+		titleVals = append(titleVals, t)
+	}
+	releaseQuery, args, err := sqlx.In(releaseQueryRaw, titleVals)
 	if err != nil {
 		return errors.Wrap(err, "Failed creating IN query")
 	}
 	releaseQuery = m.db.Rebind(releaseQuery)
-	if err := m.db.SelectContext(ctx, outPtr, releaseQuery, args); err != nil {
+	if err := m.db.SelectContext(ctx, outPtr, releaseQuery, args...); err != nil {
 		logger.Errf(ctx, "Failed to find manga releases by titles with %s err: %s", releaseQuery, ErrDetails(err))
 		return errors.WithStack(err)
 	}

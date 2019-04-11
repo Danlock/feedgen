@@ -20,6 +20,10 @@ type Client struct {
 	// Manga Doer is the HTTP client used to make requests to the manga endpoint.
 	MangaDoer goahttp.Doer
 
+	// ViewManga Doer is the HTTP client used to make requests to the viewManga
+	// endpoint.
+	ViewMangaDoer goahttp.Doer
+
 	// RestoreResponseBody controls whether the response bodies are reset after
 	// decoding so they can be read again.
 	RestoreResponseBody bool
@@ -41,6 +45,7 @@ func NewClient(
 ) *Client {
 	return &Client{
 		MangaDoer:           doer,
+		ViewMangaDoer:       doer,
 		RestoreResponseBody: restoreBody,
 		scheme:              scheme,
 		host:                host,
@@ -69,6 +74,26 @@ func (c *Client) Manga() goa.Endpoint {
 
 		if err != nil {
 			return nil, goahttp.ErrRequestError("feedgen", "manga", err)
+		}
+		return decodeResponse(resp)
+	}
+}
+
+// ViewManga returns an endpoint that makes HTTP requests to the feedgen
+// service viewManga server.
+func (c *Client) ViewManga() goa.Endpoint {
+	var (
+		decodeResponse = DecodeViewMangaResponse(c.decoder, c.RestoreResponseBody)
+	)
+	return func(ctx context.Context, v interface{}) (interface{}, error) {
+		req, err := c.BuildViewMangaRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := c.ViewMangaDoer.Do(req)
+
+		if err != nil {
+			return nil, goahttp.ErrRequestError("feedgen", "viewManga", err)
 		}
 		return decodeResponse(resp)
 	}

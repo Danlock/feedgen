@@ -48,6 +48,29 @@ paths:
             type: string
       schemes:
       - http
+  /feed/manga/{hash}:
+    get:
+      tags:
+      - feedgen
+      summary: viewManga feedgen
+      operationId: feedgen#viewManga
+      parameters:
+      - name: hash
+        in: path
+        description: Identifier of previously created manga feed
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK response.
+          schema:
+            type: string
+        "404":
+          description: Not Found response.
+          schema:
+            type: string
+      schemes:
+      - http
 definitions:
   FeedgenMangaRequestBody:
     title: FeedgenMangaRequestBody
@@ -57,17 +80,17 @@ definitions:
         type: array
         items:
           type: string
-          example: Officia qui fuga porro quia ut id.
+          example: Soluta repudiandae libero architecto.
         description: List of manga titles to subscribe to
         example:
-        - Dolor ratione.
-        - Adipisci dolores ab fuga magni.
-        - Repudiandae libero architecto.
+        - Labore molestiae.
+        - Neque alias.
         minItems: 1
         maxItems: 65535
     example:
       titles:
-      - Labore molestiae.
-      - Neque alias.
+      - Blanditiis nesciunt molestias nostrum vel qui.
+      - Doloremque soluta amet pariatur autem.
+      - Quas impedit ratione esse.
     required:
     - titles

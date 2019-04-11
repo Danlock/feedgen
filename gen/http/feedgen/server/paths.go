@@ -7,7 +7,16 @@
 
 package server
 
+import (
+	"fmt"
+)
+
 // MangaFeedgenPath returns the URL path to the feedgen service manga HTTP endpoint.
 func MangaFeedgenPath() string {
 	return "/feed/manga"
+}
+
+// ViewMangaFeedgenPath returns the URL path to the feedgen service viewManga HTTP endpoint.
+func ViewMangaFeedgenPath(hash string) string {
+	return fmt.Sprintf("/feed/manga/%v", hash)
 }

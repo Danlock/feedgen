@@ -30,6 +30,13 @@ func NewMangaPayload(body *MangaRequestBody, feedType string) *feedgen.MangaPayl
 	return v
 }
 
+// NewViewMangaPayload builds a feedgen service viewManga endpoint payload.
+func NewViewMangaPayload(hash string) *feedgen.ViewMangaPayload {
+	return &feedgen.ViewMangaPayload{
+		Hash: hash,
+	}
+}
+
 // ValidateMangaRequestBody runs the validations defined on MangaRequestBody
 func ValidateMangaRequestBody(body *MangaRequestBody) (err error) {
 	if body.Titles == nil {

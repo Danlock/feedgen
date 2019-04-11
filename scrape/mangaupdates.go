@@ -21,6 +21,10 @@ import (
 const muReleasesURL = "https://www.mangaupdates.com/releases.html"
 const muInfoURLFormat = "https://www.mangaupdates.com/series.html?id=%d"
 
+func GetMUPageURL(muid int) string {
+	return fmt.Sprintf(muInfoURLFormat, muid)
+}
+
 type MangaRelease struct {
 	MUID        int
 	Title       string

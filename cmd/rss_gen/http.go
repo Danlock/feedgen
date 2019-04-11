@@ -40,7 +40,7 @@ func handleHTTPServer(ctx context.Context, u *url.URL, wg *sync.WaitGroup, manga
 	// server packages contains code generated from the design which maps
 	// the service input and output data structures to HTTP requests and
 	// responses.
-	feedgenServer := feedgensvr.New(feedgen.NewEndpoints(api.NewFeedSrvc(mangaStore)), mux, dec, enc, errorHandler())
+	feedgenServer := feedgensvr.New(feedgen.NewEndpoints(api.NewFeedSrvc(u.String(), mangaStore)), mux, dec, enc, errorHandler())
 	// Configure the mux.
 	feedgensvr.Mount(mux, feedgenServer)
 
@@ -65,7 +65,10 @@ func handleHTTPServer(ctx context.Context, u *url.URL, wg *sync.WaitGroup, manga
 	logger.Infof(ctx, "HTTP server listening on %q", u.Host)
 	wg.Add(1)
 	// Spin off goroutine for http server
-	go logger.Errf(ctx, "Server has returned with: %+v", srv.ListenAndServe())
+	go func() {
+		logger.Errf(ctx, "Server has returned with: %+v", srv.ListenAndServe())
+	}()
+
 	// Spin off goroutine for server graceful shutdown
 	go func() {
 		defer wg.Done()

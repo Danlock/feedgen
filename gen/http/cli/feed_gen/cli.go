@@ -23,7 +23,7 @@ import (
 //    command (subcommand1|subcommand2|...)
 //
 func UsageCommands() string {
-	return `feedgen manga
+	return `feedgen (manga|view-manga)
 `
 }
 
@@ -31,9 +31,7 @@ func UsageCommands() string {
 func UsageExamples() string {
 	return os.Args[0] + ` feedgen manga --body '{
       "titles": [
-         "Et ad earum eaque excepturi itaque voluptatem.",
-         "Officiis dignissimos occaecati.",
-         "Natus dignissimos reprehenderit incidunt."
+         "Dignissimos reprehenderit incidunt."
       ]
    }' --feed-type "atom"` + "\n" +
 		""
@@ -54,9 +52,13 @@ func ParseEndpoint(
 		feedgenMangaFlags        = flag.NewFlagSet("manga", flag.ExitOnError)
 		feedgenMangaBodyFlag     = feedgenMangaFlags.String("body", "REQUIRED", "")
 		feedgenMangaFeedTypeFlag = feedgenMangaFlags.String("feed-type", "", "")
+
+		feedgenViewMangaFlags    = flag.NewFlagSet("view-manga", flag.ExitOnError)
+		feedgenViewMangaHashFlag = feedgenViewMangaFlags.String("hash", "REQUIRED", "Identifier of previously created manga feed")
 	)
 	feedgenFlags.Usage = feedgenUsage
 	feedgenMangaFlags.Usage = feedgenMangaUsage
+	feedgenViewMangaFlags.Usage = feedgenViewMangaUsage
 
 	if err := flag.CommandLine.Parse(os.Args[1:]); err != nil {
 		return nil, nil, err
@@ -95,6 +97,9 @@ func ParseEndpoint(
 			case "manga":
 				epf = feedgenMangaFlags
 
+			case "view-manga":
+				epf = feedgenViewMangaFlags
+
 			}
 
 		}
@@ -123,6 +128,9 @@ func ParseEndpoint(
 			case "manga":
 				endpoint = c.Manga()
 				data, err = feedgenc.BuildMangaPayload(*feedgenMangaBodyFlag, *feedgenMangaFeedTypeFlag)
+			case "view-manga":
+				endpoint = c.ViewManga()
+				data, err = feedgenc.BuildViewMangaPayload(*feedgenViewMangaHashFlag)
 			}
 		}
 	}
@@ -141,6 +149,7 @@ Usage:
 
 COMMAND:
     manga: Manga implements manga.
+    view-manga: ViewManga implements viewManga.
 
 Additional help:
     %s feedgen COMMAND --help
@@ -156,10 +165,19 @@ Manga implements manga.
 Example:
     `+os.Args[0]+` feedgen manga --body '{
       "titles": [
-         "Et ad earum eaque excepturi itaque voluptatem.",
-         "Officiis dignissimos occaecati.",
-         "Natus dignissimos reprehenderit incidunt."
+         "Dignissimos reprehenderit incidunt."
       ]
    }' --feed-type "atom"
+`, os.Args[0])
+}
+
+func feedgenViewMangaUsage() {
+	fmt.Fprintf(os.Stderr, `%s [flags] feedgen view-manga -hash STRING
+
+ViewManga implements viewManga.
+    -hash STRING: Identifier of previously created manga feed
+
+Example:
+    `+os.Args[0]+` feedgen view-manga --hash "Perferendis dolor."
 `, os.Args[0])
 }

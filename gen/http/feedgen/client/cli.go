@@ -23,7 +23,7 @@ func BuildMangaPayload(feedgenMangaBody string, feedgenMangaFeedType string) (*f
 	{
 		err = json.Unmarshal([]byte(feedgenMangaBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, example of valid JSON:\n%s", "'{\n      \"titles\": [\n         \"Et ad earum eaque excepturi itaque voluptatem.\",\n         \"Officiis dignissimos occaecati.\",\n         \"Natus dignissimos reprehenderit incidunt.\"\n      ]\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, example of valid JSON:\n%s", "'{\n      \"titles\": [\n         \"Dignissimos reprehenderit incidunt.\"\n      ]\n   }'")
 		}
 		if body.Titles == nil {
 			err = goa.MergeErrors(err, goa.MissingFieldError("titles", "body"))
@@ -56,4 +56,17 @@ func BuildMangaPayload(feedgenMangaBody string, feedgenMangaFeedType string) (*f
 	}
 	v.FeedType = feedType
 	return v, nil
+}
+
+// BuildViewMangaPayload builds the payload for the feedgen viewManga endpoint
+// from CLI flags.
+func BuildViewMangaPayload(feedgenViewMangaHash string) (*feedgen.ViewMangaPayload, error) {
+	var hash string
+	{
+		hash = feedgenViewMangaHash
+	}
+	payload := &feedgen.ViewMangaPayload{
+		Hash: hash,
+	}
+	return payload, nil
 }

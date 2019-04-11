@@ -25,10 +25,23 @@ var _ = dsl.Service("feedgen", func() {
 			})
 			dsl.Required("titles")
 		})
-		dsl.Result(dsl.String, "Feed")
+		dsl.Result(dsl.String, "path for desired feed")
 		dsl.HTTP(func() {
 			dsl.POST("/manga")
 			dsl.Param("feedType")
+			dsl.Response(dsl.StatusOK)
+			dsl.Response(dsl.StatusNotFound)
+		})
+	})
+	dsl.Method("viewManga", func() {
+		dsl.Payload(func() {
+			dsl.Attribute("hash", dsl.String, "Identifier of previously created manga feed")
+			dsl.Required("hash")
+		})
+		dsl.Result(dsl.String, "Feed")
+		dsl.HTTP(func() {
+			dsl.GET("/manga/{hash}")
+			dsl.Param("hash")
 			dsl.Response(dsl.StatusOK)
 			dsl.Response(dsl.StatusNotFound)
 		})

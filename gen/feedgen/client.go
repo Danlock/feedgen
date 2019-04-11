@@ -15,13 +15,15 @@ import (
 
 // Client is the "feedgen" service client.
 type Client struct {
-	MangaEndpoint goa.Endpoint
+	MangaEndpoint     goa.Endpoint
+	ViewMangaEndpoint goa.Endpoint
 }
 
 // NewClient initializes a "feedgen" service client given the endpoints.
-func NewClient(manga goa.Endpoint) *Client {
+func NewClient(manga, viewManga goa.Endpoint) *Client {
 	return &Client{
-		MangaEndpoint: manga,
+		MangaEndpoint:     manga,
+		ViewMangaEndpoint: viewManga,
 	}
 }
 
@@ -29,6 +31,16 @@ func NewClient(manga goa.Endpoint) *Client {
 func (c *Client) Manga(ctx context.Context, p *MangaPayload) (res string, err error) {
 	var ires interface{}
 	ires, err = c.MangaEndpoint(ctx, p)
+	if err != nil {
+		return
+	}
+	return ires.(string), nil
+}
+
+// ViewManga calls the "viewManga" endpoint of the "feedgen" service.
+func (c *Client) ViewManga(ctx context.Context, p *ViewMangaPayload) (res string, err error) {
+	var ires interface{}
+	ires, err = c.ViewMangaEndpoint(ctx, p)
 	if err != nil {
 		return
 	}
