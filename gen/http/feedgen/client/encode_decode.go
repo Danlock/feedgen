@@ -41,6 +41,9 @@ func EncodeMangaRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.
 		if !ok {
 			return goahttp.ErrInvalidType("feedgen", "manga", "*feedgen.MangaPayload", v)
 		}
+		values := req.URL.Query()
+		values.Add("feedType", p.FeedType)
+		req.URL.RawQuery = values.Encode()
 		body := NewMangaRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
 			return goahttp.ErrEncodingError("feedgen", "manga", err)

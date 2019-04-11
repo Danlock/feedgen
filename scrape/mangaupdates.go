@@ -155,11 +155,21 @@ func GetAndParseMUMangaPage(ctx context.Context, id int) (m MangaInfo, err error
 }
 
 func QueryMUSeriesRange(ctx context.Context, start, end int) ([]MangaInfo, error) {
+	ids := make([]int, end-start)
+	val := start
+	for i := range ids {
+		ids[i] = val
+		val++
+	}
+	return QueryMUSeriesIds(ctx, ids)
+}
+
+func QueryMUSeriesIds(ctx context.Context, ids []int) ([]MangaInfo, error) {
 	// Create sender goroutine that sends down ids and closes when done
 	idChan := make(chan int)
 	go func() {
 		defer close(idChan)
-		for i := start; i < end; i++ {
+		for _, i := range ids {
 			time.Sleep(500 * time.Millisecond)
 			select {
 			case idChan <- i:

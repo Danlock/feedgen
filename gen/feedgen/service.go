@@ -29,6 +29,8 @@ var MethodNames = [1]string{"manga"}
 
 // MangaPayload is the payload type of the feedgen service manga method.
 type MangaPayload struct {
+	// RSS, Atom, or JSON Feed
+	FeedType string
 	// List of manga titles to subscribe to
 	Titles []string
 }

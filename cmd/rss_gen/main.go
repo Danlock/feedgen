@@ -182,20 +182,17 @@ func handlePoll(ctx context.Context, mangaStore db.MangaStorer, freq time.Durati
 			if err != nil {
 				logger.Errf(ctx, "Failed to filter out new manga releases!")
 			}
-			// Scrape the info page for each new manga found, skipping them if the parse fails, and place them in db
+			// Scrape the info page for each new manga found and place them in db
 			newRelLen := len(newReleases)
 			if newRelLen > 0 {
 				logger.Infof(ctx, "Found %d new titles, scraping their pages...", newRelLen)
-				manga := make([]scrape.MangaInfo, 0, newRelLen)
+				muids := make([]int, 0, newRelLen)
 				for _, r := range newReleases {
-					m, err := scrape.GetAndParseMUMangaPage(ctx, r.MUID)
-					if err != nil && err != scrape.ErrInvalidMUID {
-						logger.Errf(ctx, "Failed to scrape manga page for MUID %d err:%+v", r.MUID, err)
-						continue
-					}
-					manga = append(manga, m)
+					muids = append(muids, r.MUID)
 				}
-				if err := mangaStore.UpsertManga(ctx, manga); err != nil {
+				if manga, err := scrape.QueryMUSeriesIds(ctx, muids); err != nil {
+					logger.Errf(ctx, "Failed to query new manga release pages err:%+v", err)
+				} else if err := mangaStore.UpsertManga(ctx, manga); err != nil {
 					logger.Errf(ctx, "Failed to upsert manga for new releases err: %+v", err)
 				}
 			}

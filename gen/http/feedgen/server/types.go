@@ -20,12 +20,13 @@ type MangaRequestBody struct {
 }
 
 // NewMangaPayload builds a feedgen service manga endpoint payload.
-func NewMangaPayload(body *MangaRequestBody) *feedgen.MangaPayload {
+func NewMangaPayload(body *MangaRequestBody, feedType string) *feedgen.MangaPayload {
 	v := &feedgen.MangaPayload{}
 	v.Titles = make([]string, len(body.Titles))
 	for i, val := range body.Titles {
 		v.Titles[i] = val
 	}
+	v.FeedType = feedType
 	return v
 }
 
@@ -36,6 +37,9 @@ func ValidateMangaRequestBody(body *MangaRequestBody) (err error) {
 	}
 	if len(body.Titles) < 1 {
 		err = goa.MergeErrors(err, goa.InvalidLengthError("body.titles", body.Titles, len(body.Titles), 1, true))
+	}
+	if len(body.Titles) > 65535 {
+		err = goa.MergeErrors(err, goa.InvalidLengthError("body.titles", body.Titles, len(body.Titles), 65535, false))
 	}
 	return
 }

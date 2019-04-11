@@ -47,7 +47,23 @@ func DecodeMangaRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.D
 		if err != nil {
 			return nil, err
 		}
-		payload := NewMangaPayload(&body)
+
+		var (
+			feedType string
+		)
+		feedTypeRaw := r.URL.Query().Get("feedType")
+		if feedTypeRaw != "" {
+			feedType = feedTypeRaw
+		} else {
+			feedType = "json"
+		}
+		if !(feedType == "rss" || feedType == "atom" || feedType == "json") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("feedType", feedType, []interface{}{"rss", "atom", "json"}))
+		}
+		if err != nil {
+			return nil, err
+		}
+		payload := NewMangaPayload(&body, feedType)
 
 		return payload, nil
 	}

@@ -1,7 +1,7 @@
 swagger: "2.0"
 info:
-  title: RSS Fen
-  description: Generates RSS feed for media
+  title: Feed Generator
+  description: Generates feed for different types of media
   version: ""
 host: localhost:80
 consumes:
@@ -20,6 +20,16 @@ paths:
       summary: manga feedgen
       operationId: feedgen#manga
       parameters:
+      - name: feedType
+        in: query
+        description: RSS, Atom, or JSON Feed
+        required: false
+        type: string
+        default: json
+        enum:
+        - rss
+        - atom
+        - json
       - name: MangaRequestBody
         in: body
         required: true
@@ -47,17 +57,17 @@ definitions:
         type: array
         items:
           type: string
-          example: Accusantium fuga ut.
+          example: Officia qui fuga porro quia ut id.
         description: List of manga titles to subscribe to
         example:
-        - Nihil repellendus animi dolorum omnis sint ab.
-        - Aut incidunt eveniet sed.
-        - Omnis odit.
+        - Dolor ratione.
+        - Adipisci dolores ab fuga magni.
+        - Repudiandae libero architecto.
         minItems: 1
+        maxItems: 65535
     example:
       titles:
-      - Vel nisi.
-      - Optio id et laudantium.
-      - Porro eveniet qui.
+      - Labore molestiae.
+      - Neque alias.
     required:
     - titles

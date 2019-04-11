@@ -17,13 +17,13 @@ import (
 
 // BuildMangaPayload builds the payload for the feedgen manga endpoint from CLI
 // flags.
-func BuildMangaPayload(feedgenMangaBody string) (*feedgen.MangaPayload, error) {
+func BuildMangaPayload(feedgenMangaBody string, feedgenMangaFeedType string) (*feedgen.MangaPayload, error) {
 	var err error
 	var body MangaRequestBody
 	{
 		err = json.Unmarshal([]byte(feedgenMangaBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, example of valid JSON:\n%s", "'{\n      \"titles\": [\n         \"Quia at consectetur aliquam.\",\n         \"Ex temporibus.\"\n      ]\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, example of valid JSON:\n%s", "'{\n      \"titles\": [\n         \"Et ad earum eaque excepturi itaque voluptatem.\",\n         \"Officiis dignissimos occaecati.\",\n         \"Natus dignissimos reprehenderit incidunt.\"\n      ]\n   }'")
 		}
 		if body.Titles == nil {
 			err = goa.MergeErrors(err, goa.MissingFieldError("titles", "body"))
@@ -31,8 +31,17 @@ func BuildMangaPayload(feedgenMangaBody string) (*feedgen.MangaPayload, error) {
 		if len(body.Titles) < 1 {
 			err = goa.MergeErrors(err, goa.InvalidLengthError("body.titles", body.Titles, len(body.Titles), 1, true))
 		}
+		if len(body.Titles) > 65535 {
+			err = goa.MergeErrors(err, goa.InvalidLengthError("body.titles", body.Titles, len(body.Titles), 65535, false))
+		}
 		if err != nil {
 			return nil, err
+		}
+	}
+	var feedType string
+	{
+		if feedgenMangaFeedType != "" {
+			feedType = feedgenMangaFeedType
 		}
 	}
 	if err != nil {
@@ -45,5 +54,6 @@ func BuildMangaPayload(feedgenMangaBody string) (*feedgen.MangaPayload, error) {
 			v.Titles[i] = val
 		}
 	}
+	v.FeedType = feedType
 	return v, nil
 }
