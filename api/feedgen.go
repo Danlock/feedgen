@@ -5,7 +5,6 @@ import (
 	"errors"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/danlock/go-rss-gen/gen/http/feedgen/client"
 
@@ -42,18 +41,31 @@ func (s *fgService) Manga(ctx context.Context, p *feedgen.MangaPayload) (string,
 		seenTitles[t] = struct{}{}
 		normalizedTitles = append(normalizedTitles, t)
 	}
-	releases := make([]db.DBMangaRelease, 0, len(p.Titles))
-	if err := s.mangaStore.FindReleasesByTitles(ctx, p.Titles, &releases); err != nil {
+	hash, err := s.mangaStore.UpsertFeed(ctx, p)
+	if err != nil {
+		logger.Errf(ctx, "Failed to upsert feed err:%+v", err)
+		return "", feedgen.MakeInternalServerError(errors.New(""))
+	}
+	return s.hostURI + client.ViewMangaFeedgenPath(hash), nil
+}
+
+func (s *fgService) ViewManga(ctx context.Context, p *feedgen.ViewMangaPayload) (*feedgen.ViewMangaResult, error) {
+	feed := db.MangaFeed{}
+	if err := s.mangaStore.GetFeed(ctx, p.Hash, &feed); err != nil {
+		return nil, err
+	}
+	releases := make([]db.DBMangaRelease, 0, len(feed.Titles))
+	if err := s.mangaStore.FindReleasesByTitles(ctx, feed.Titles, &releases); err != nil {
 		logger.Errf(ctx, "Failed to find releases for those titles err:%+v", err)
-		return "", err
+		return nil, err
 	}
 	mangaFeed := feeds.Feed{
 		Title:       "MangaUpdates Release Page Feed",
 		Description: "This feed has the latest releases for the requested titles from MangaUpdates, if those titles have had a release recent enough to be in the database.",
-		Created:     time.Now(),
+		Created:     feed.CreatedAt,
 		Link: &feeds.Link{
-			Href: s.hostURI + client.MangaFeedgenPath(),
-			Rel:  s.hostURI + client.MangaFeedgenPath(),
+			Href: s.hostURI + client.ViewMangaFeedgenPath(feed.Hash),
+			Rel:  s.hostURI + client.ViewMangaFeedgenPath(feed.Hash),
 		},
 	}
 	for _, r := range releases {
@@ -71,18 +83,25 @@ func (s *fgService) Manga(ctx context.Context, p *feedgen.MangaPayload) (string,
 			},
 		})
 	}
-	switch p.FeedType {
+	var result string
+	var cType string
+	var err error
+	switch feed.Type {
 	case "json":
-		return mangaFeed.ToJSON()
+		result, err = mangaFeed.ToJSON()
+		cType = "application/json"
 	case "atom":
-		return mangaFeed.ToAtom()
+		result, err = mangaFeed.ToAtom()
+		cType = "application/xml"
 	case "rss":
-		return mangaFeed.ToRss()
+		result, err = mangaFeed.ToRss()
+		cType = "application/xml"
 	default:
-		return "", errors.New("Unsupported feed type")
+		return nil, errors.New("Unsupported feed type")
 	}
-}
-
-func (s *fgService) ViewManga(ctx context.Context, p *feedgen.ViewMangaPayload) (res string, err error) {
-	return
+	if err != nil {
+		logger.Errf(ctx, "Failed creating feed %+v err:%+v", mangaFeed, err)
+		return nil, feedgen.MakeInternalServerError(errors.New(""))
+	}
+	return &feedgen.ViewMangaResult{Feed: []byte(result), ContentType: cType}, nil
 }

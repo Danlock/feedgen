@@ -15,6 +15,7 @@ import (
 	"net/url"
 
 	feedgen "github.com/danlock/go-rss-gen/gen/feedgen"
+	goa "goa.design/goa"
 	goahttp "goa.design/goa/http"
 )
 
@@ -55,6 +56,11 @@ func EncodeMangaRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.
 // DecodeMangaResponse returns a decoder for responses returned by the feedgen
 // manga endpoint. restoreBody controls whether the response body should be
 // restored after having been read.
+// DecodeMangaResponse may return the following errors:
+//	- "NotFound" (type *goa.ServiceError): http.StatusNotFound
+//	- "BadGateway" (type *goa.ServiceError): http.StatusBadGateway
+//	- "InternalServerError" (type *goa.ServiceError): http.StatusInternalServerError
+//	- error: internal error
 func DecodeMangaResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (interface{}, error) {
 	return func(resp *http.Response) (interface{}, error) {
 		if restoreBody {
@@ -80,6 +86,48 @@ func DecodeMangaResponse(decoder func(*http.Response) goahttp.Decoder, restoreBo
 				return nil, goahttp.ErrDecodingError("feedgen", "manga", err)
 			}
 			return body, nil
+		case http.StatusNotFound:
+			var (
+				body MangaNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("feedgen", "manga", err)
+			}
+			err = ValidateMangaNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("feedgen", "manga", err)
+			}
+			return nil, NewMangaNotFound(&body)
+		case http.StatusBadGateway:
+			var (
+				body MangaBadGatewayResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("feedgen", "manga", err)
+			}
+			err = ValidateMangaBadGatewayResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("feedgen", "manga", err)
+			}
+			return nil, NewMangaBadGateway(&body)
+		case http.StatusInternalServerError:
+			var (
+				body MangaInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("feedgen", "manga", err)
+			}
+			err = ValidateMangaInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("feedgen", "manga", err)
+			}
+			return nil, NewMangaInternalServerError(&body)
 		default:
 			body, _ := ioutil.ReadAll(resp.Body)
 			return nil, goahttp.ErrInvalidResponse("feedgen", "manga", resp.StatusCode, string(body))
@@ -115,6 +163,11 @@ func (c *Client) BuildViewMangaRequest(ctx context.Context, v interface{}) (*htt
 // DecodeViewMangaResponse returns a decoder for responses returned by the
 // feedgen viewManga endpoint. restoreBody controls whether the response body
 // should be restored after having been read.
+// DecodeViewMangaResponse may return the following errors:
+//	- "NotFound" (type *goa.ServiceError): http.StatusNotFound
+//	- "BadGateway" (type *goa.ServiceError): http.StatusBadGateway
+//	- "InternalServerError" (type *goa.ServiceError): http.StatusInternalServerError
+//	- error: internal error
 func DecodeViewMangaResponse(decoder func(*http.Response) goahttp.Decoder, restoreBody bool) func(*http.Response) (interface{}, error) {
 	return func(resp *http.Response) (interface{}, error) {
 		if restoreBody {
@@ -132,14 +185,68 @@ func DecodeViewMangaResponse(decoder func(*http.Response) goahttp.Decoder, resto
 		switch resp.StatusCode {
 		case http.StatusOK:
 			var (
-				body string
+				body []byte
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
 				return nil, goahttp.ErrDecodingError("feedgen", "viewManga", err)
 			}
-			return body, nil
+			var (
+				contentType string
+			)
+			contentTypeRaw := resp.Header.Get("Content-Type")
+			if contentTypeRaw == "" {
+				err = goa.MergeErrors(err, goa.MissingFieldError("Content-Type", "header"))
+			}
+			contentType = contentTypeRaw
+			if err != nil {
+				return nil, goahttp.ErrValidationError("feedgen", "viewManga", err)
+			}
+			res := NewViewMangaResultOK(body, contentType)
+			return res, nil
+		case http.StatusNotFound:
+			var (
+				body ViewMangaNotFoundResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("feedgen", "viewManga", err)
+			}
+			err = ValidateViewMangaNotFoundResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("feedgen", "viewManga", err)
+			}
+			return nil, NewViewMangaNotFound(&body)
+		case http.StatusBadGateway:
+			var (
+				body ViewMangaBadGatewayResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("feedgen", "viewManga", err)
+			}
+			err = ValidateViewMangaBadGatewayResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("feedgen", "viewManga", err)
+			}
+			return nil, NewViewMangaBadGateway(&body)
+		case http.StatusInternalServerError:
+			var (
+				body ViewMangaInternalServerErrorResponseBody
+				err  error
+			)
+			err = decoder(resp).Decode(&body)
+			if err != nil {
+				return nil, goahttp.ErrDecodingError("feedgen", "viewManga", err)
+			}
+			err = ValidateViewMangaInternalServerErrorResponseBody(&body)
+			if err != nil {
+				return nil, goahttp.ErrValidationError("feedgen", "viewManga", err)
+			}
+			return nil, NewViewMangaInternalServerError(&body)
 		default:
 			body, _ := ioutil.ReadAll(resp.Body)
 			return nil, goahttp.ErrInvalidResponse("feedgen", "viewManga", resp.StatusCode, string(body))

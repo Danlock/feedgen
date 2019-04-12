@@ -97,7 +97,7 @@ func NewMangaHandler(
 	var (
 		decodeRequest  = DecodeMangaRequest(mux, dec)
 		encodeResponse = EncodeMangaResponse(enc)
-		encodeError    = goahttp.ErrorEncoder(enc)
+		encodeError    = EncodeMangaError(enc)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))
@@ -149,7 +149,7 @@ func NewViewMangaHandler(
 	var (
 		decodeRequest  = DecodeViewMangaRequest(mux, dec)
 		encodeResponse = EncodeViewMangaResponse(enc)
-		encodeError    = goahttp.ErrorEncoder(enc)
+		encodeError    = EncodeViewMangaError(enc)
 	)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := context.WithValue(r.Context(), goahttp.AcceptTypeKey, r.Header.Get("Accept"))

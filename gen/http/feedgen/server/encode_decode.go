@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 
+	feedgen "github.com/danlock/go-rss-gen/gen/feedgen"
 	goa "goa.design/goa"
 	goahttp "goa.design/goa/http"
 )
@@ -69,13 +70,51 @@ func DecodeMangaRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.D
 	}
 }
 
+// EncodeMangaError returns an encoder for errors returned by the manga feedgen
+// endpoint.
+func EncodeMangaError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, error) error {
+	encodeError := goahttp.ErrorEncoder(encoder)
+	return func(ctx context.Context, w http.ResponseWriter, v error) error {
+		en, ok := v.(ErrorNamer)
+		if !ok {
+			return encodeError(ctx, w, v)
+		}
+		switch en.ErrorName() {
+		case "NotFound":
+			res := v.(*goa.ServiceError)
+			enc := encoder(ctx, w)
+			body := NewMangaNotFoundResponseBody(res)
+			w.Header().Set("goa-error", "NotFound")
+			w.WriteHeader(http.StatusNotFound)
+			return enc.Encode(body)
+		case "BadGateway":
+			res := v.(*goa.ServiceError)
+			enc := encoder(ctx, w)
+			body := NewMangaBadGatewayResponseBody(res)
+			w.Header().Set("goa-error", "BadGateway")
+			w.WriteHeader(http.StatusBadGateway)
+			return enc.Encode(body)
+		case "InternalServerError":
+			res := v.(*goa.ServiceError)
+			enc := encoder(ctx, w)
+			body := NewMangaInternalServerErrorResponseBody(res)
+			w.Header().Set("goa-error", "InternalServerError")
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
+		default:
+			return encodeError(ctx, w, v)
+		}
+	}
+}
+
 // EncodeViewMangaResponse returns an encoder for responses returned by the
 // feedgen viewManga endpoint.
 func EncodeViewMangaResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, interface{}) error {
 	return func(ctx context.Context, w http.ResponseWriter, v interface{}) error {
-		res := v.(string)
+		res := v.(*feedgen.ViewMangaResult)
 		enc := encoder(ctx, w)
-		body := res
+		body := res.Feed
+		w.Header().Set("Content-Type", res.ContentType)
 		w.WriteHeader(http.StatusOK)
 		return enc.Encode(body)
 	}
@@ -94,5 +133,42 @@ func DecodeViewMangaRequest(mux goahttp.Muxer, decoder func(*http.Request) goaht
 		payload := NewViewMangaPayload(hash)
 
 		return payload, nil
+	}
+}
+
+// EncodeViewMangaError returns an encoder for errors returned by the viewManga
+// feedgen endpoint.
+func EncodeViewMangaError(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, error) error {
+	encodeError := goahttp.ErrorEncoder(encoder)
+	return func(ctx context.Context, w http.ResponseWriter, v error) error {
+		en, ok := v.(ErrorNamer)
+		if !ok {
+			return encodeError(ctx, w, v)
+		}
+		switch en.ErrorName() {
+		case "NotFound":
+			res := v.(*goa.ServiceError)
+			enc := encoder(ctx, w)
+			body := NewViewMangaNotFoundResponseBody(res)
+			w.Header().Set("goa-error", "NotFound")
+			w.WriteHeader(http.StatusNotFound)
+			return enc.Encode(body)
+		case "BadGateway":
+			res := v.(*goa.ServiceError)
+			enc := encoder(ctx, w)
+			body := NewViewMangaBadGatewayResponseBody(res)
+			w.Header().Set("goa-error", "BadGateway")
+			w.WriteHeader(http.StatusBadGateway)
+			return enc.Encode(body)
+		case "InternalServerError":
+			res := v.(*goa.ServiceError)
+			enc := encoder(ctx, w)
+			body := NewViewMangaInternalServerErrorResponseBody(res)
+			w.Header().Set("goa-error", "InternalServerError")
+			w.WriteHeader(http.StatusInternalServerError)
+			return enc.Encode(body)
+		default:
+			return encodeError(ctx, w, v)
+		}
 	}
 }

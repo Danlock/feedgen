@@ -86,7 +86,7 @@ func handleHTTPServer(ctx context.Context, u *url.URL, wg *sync.WaitGroup, manga
 func errorHandler() func(context.Context, http.ResponseWriter, error) {
 	return func(ctx context.Context, w http.ResponseWriter, err error) {
 		id := ctx.Value(middleware.RequestIDKey).(string)
-		w.Write([]byte("[" + id + "] encoding: " + err.Error()))
-		logger.Errf(ctx, "req_id: %s ERROR: %s", id, err.Error())
+		w.Write([]byte("[" + id + "] Something went wrong"))
+		logger.Errf(ctx, "%s", err.Error())
 	}
 }

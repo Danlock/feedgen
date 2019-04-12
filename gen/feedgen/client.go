@@ -38,11 +38,11 @@ func (c *Client) Manga(ctx context.Context, p *MangaPayload) (res string, err er
 }
 
 // ViewManga calls the "viewManga" endpoint of the "feedgen" service.
-func (c *Client) ViewManga(ctx context.Context, p *ViewMangaPayload) (res string, err error) {
+func (c *Client) ViewManga(ctx context.Context, p *ViewMangaPayload) (res *ViewMangaResult, err error) {
 	var ires interface{}
 	ires, err = c.ViewMangaEndpoint(ctx, p)
 	if err != nil {
 		return
 	}
-	return ires.(string), nil
+	return ires.(*ViewMangaResult), nil
 }

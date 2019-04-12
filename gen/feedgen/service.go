@@ -9,6 +9,8 @@ package feedgen
 
 import (
 	"context"
+
+	"goa.design/goa"
 )
 
 // Service is the feedgen service interface.
@@ -16,7 +18,7 @@ type Service interface {
 	// Manga implements manga.
 	Manga(context.Context, *MangaPayload) (res string, err error)
 	// ViewManga implements viewManga.
-	ViewManga(context.Context, *ViewMangaPayload) (res string, err error)
+	ViewManga(context.Context, *ViewMangaPayload) (res *ViewMangaResult, err error)
 }
 
 // ServiceName is the name of the service as defined in the design. This is the
@@ -41,4 +43,37 @@ type MangaPayload struct {
 type ViewMangaPayload struct {
 	// Identifier of previously created manga feed
 	Hash string
+}
+
+// ViewMangaResult is the result type of the feedgen service viewManga method.
+type ViewMangaResult struct {
+	Feed        []byte
+	ContentType string
+}
+
+// MakeNotFound builds a goa.ServiceError from an error.
+func MakeNotFound(err error) *goa.ServiceError {
+	return &goa.ServiceError{
+		Name:    "NotFound",
+		ID:      goa.NewErrorID(),
+		Message: err.Error(),
+	}
+}
+
+// MakeBadGateway builds a goa.ServiceError from an error.
+func MakeBadGateway(err error) *goa.ServiceError {
+	return &goa.ServiceError{
+		Name:    "BadGateway",
+		ID:      goa.NewErrorID(),
+		Message: err.Error(),
+	}
+}
+
+// MakeInternalServerError builds a goa.ServiceError from an error.
+func MakeInternalServerError(err error) *goa.ServiceError {
+	return &goa.ServiceError{
+		Name:    "InternalServerError",
+		ID:      goa.NewErrorID(),
+		Message: err.Error(),
+	}
 }

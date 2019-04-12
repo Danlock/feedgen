@@ -28,3 +28,12 @@ CREATE TABLE public.mangatitle (
 	CONSTRAINT mangatitles_pk PRIMARY KEY (title,muid),
 	CONSTRAINT mangatitles_manga_fk FOREIGN KEY (muid) REFERENCES public.manga(muid) ON DELETE CASCADE ON UPDATE CASCADE
 );
+
+---
+CREATE TABLE public.mangafeed (
+	hash varchar NOT NULL,
+	titles varchar[] NOT NULL,
+	"type" varchar NOT NULL,
+	created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CONSTRAINT mangafeed_pk PRIMARY KEY (hash)
+);

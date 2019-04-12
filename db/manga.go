@@ -2,14 +2,18 @@ package db
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"time"
 
+	"github.com/danlock/go-rss-gen/gen/feedgen"
 	"github.com/danlock/go-rss-gen/lib/logger"
 	"github.com/danlock/go-rss-gen/scrape"
 	"github.com/pkg/errors"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 )
 
@@ -20,6 +24,8 @@ type MangaStorer interface {
 	UpsertManga(context.Context, []scrape.MangaInfo) error
 	UpsertRelease(context.Context, []scrape.MangaRelease) error
 	FilterOutReleasesWithoutMangaInDB(context.Context, []scrape.MangaRelease) ([]scrape.MangaRelease, error)
+	UpsertFeed(context.Context, *feedgen.MangaPayload) (string, error)
+	GetFeed(context.Context, string, interface{}) error
 }
 
 type mangaStore struct {
@@ -220,4 +226,48 @@ func (m *mangaStore) FilterOutReleasesWithoutMangaInDB(ctx context.Context, rele
 		}
 	}
 	return newReleases, nil
+}
+
+type MangaFeed struct {
+	Hash      string
+	Type      string
+	Titles    pq.StringArray
+	CreatedAt time.Time `db:"created_at"`
+}
+
+func (m *mangaStore) UpsertFeed(ctx context.Context, p *feedgen.MangaPayload) (string, error) {
+	h := sha256.New()
+	h.Write([]byte(p.FeedType))
+	for _, t := range p.Titles {
+		h.Write([]byte(t))
+	}
+	mf := MangaFeed{
+		Hash:      base64.RawURLEncoding.EncodeToString(h.Sum(nil)),
+		Titles:    p.Titles,
+		Type:      p.FeedType,
+		CreatedAt: time.Now(),
+	}
+	query := `
+	INSERT INTO mangafeed (hash, titles, type)
+	VALUES	($1,$2,$3)
+	ON CONFLICT (hash)
+	DO NOTHING;
+`
+	_, err := m.db.ExecContext(ctx, query, mf.Hash, mf.Titles, mf.Type)
+	if err != nil {
+		logger.Errf(ctx, "Failed to upsert feeds with %s err: %s", query, ErrDetails(err))
+		return "", errors.WithStack(err)
+	}
+	return mf.Hash, nil
+}
+
+func (m *mangaStore) GetFeed(ctx context.Context, hash string, outPtr interface{}) error {
+	query := `
+	SELECT type,titles,created_at FROM mangafeed WHERE hash=?;
+	`
+	query = m.db.Rebind(query)
+	if err := m.db.GetContext(ctx, outPtr, query, hash); err != nil {
+		logger.Errf(ctx, "Failed to get feed with %s err %s", query, ErrDetails(err))
+	}
+	return nil
 }

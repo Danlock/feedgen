@@ -31,9 +31,10 @@ func UsageCommands() string {
 func UsageExamples() string {
 	return os.Args[0] + ` feedgen manga --body '{
       "titles": [
-         "Dignissimos reprehenderit incidunt."
+         "Nihil inventore non.",
+         "Rem aut culpa aut ducimus."
       ]
-   }' --feed-type "atom"` + "\n" +
+   }' --feed-type "rss"` + "\n" +
 		""
 }
 
@@ -165,9 +166,10 @@ Manga implements manga.
 Example:
     `+os.Args[0]+` feedgen manga --body '{
       "titles": [
-         "Dignissimos reprehenderit incidunt."
+         "Nihil inventore non.",
+         "Rem aut culpa aut ducimus."
       ]
-   }' --feed-type "atom"
+   }' --feed-type "rss"
 `, os.Args[0])
 }
 
@@ -178,6 +180,6 @@ ViewManga implements viewManga.
     -hash STRING: Identifier of previously created manga feed
 
 Example:
-    `+os.Args[0]+` feedgen view-manga --hash "Perferendis dolor."
+    `+os.Args[0]+` feedgen view-manga --hash "Alias quaerat cupiditate."
 `, os.Args[0])
 }
