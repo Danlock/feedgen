@@ -31,10 +31,9 @@ func UsageCommands() string {
 func UsageExamples() string {
 	return os.Args[0] + ` feedgen manga --body '{
       "titles": [
-         "Nihil inventore non.",
-         "Rem aut culpa aut ducimus."
+         "Ut dolores modi dolor dicta enim."
       ]
-   }' --feed-type "rss"` + "\n" +
+   }'` + "\n" +
 		""
 }
 
@@ -50,12 +49,12 @@ func ParseEndpoint(
 	var (
 		feedgenFlags = flag.NewFlagSet("feedgen", flag.ContinueOnError)
 
-		feedgenMangaFlags        = flag.NewFlagSet("manga", flag.ExitOnError)
-		feedgenMangaBodyFlag     = feedgenMangaFlags.String("body", "REQUIRED", "")
-		feedgenMangaFeedTypeFlag = feedgenMangaFlags.String("feed-type", "", "")
+		feedgenMangaFlags    = flag.NewFlagSet("manga", flag.ExitOnError)
+		feedgenMangaBodyFlag = feedgenMangaFlags.String("body", "REQUIRED", "")
 
-		feedgenViewMangaFlags    = flag.NewFlagSet("view-manga", flag.ExitOnError)
-		feedgenViewMangaHashFlag = feedgenViewMangaFlags.String("hash", "REQUIRED", "Identifier of previously created manga feed")
+		feedgenViewMangaFlags        = flag.NewFlagSet("view-manga", flag.ExitOnError)
+		feedgenViewMangaHashFlag     = feedgenViewMangaFlags.String("hash", "REQUIRED", "Identifier of previously created manga feed")
+		feedgenViewMangaFeedTypeFlag = feedgenViewMangaFlags.String("feed-type", "", "")
 	)
 	feedgenFlags.Usage = feedgenUsage
 	feedgenMangaFlags.Usage = feedgenMangaUsage
@@ -128,10 +127,10 @@ func ParseEndpoint(
 			switch epn {
 			case "manga":
 				endpoint = c.Manga()
-				data, err = feedgenc.BuildMangaPayload(*feedgenMangaBodyFlag, *feedgenMangaFeedTypeFlag)
+				data, err = feedgenc.BuildMangaPayload(*feedgenMangaBodyFlag)
 			case "view-manga":
 				endpoint = c.ViewManga()
-				data, err = feedgenc.BuildViewMangaPayload(*feedgenViewMangaHashFlag)
+				data, err = feedgenc.BuildViewMangaPayload(*feedgenViewMangaHashFlag, *feedgenViewMangaFeedTypeFlag)
 			}
 		}
 	}
@@ -157,29 +156,28 @@ Additional help:
 `, os.Args[0], os.Args[0])
 }
 func feedgenMangaUsage() {
-	fmt.Fprintf(os.Stderr, `%s [flags] feedgen manga -body JSON -feed-type STRING
+	fmt.Fprintf(os.Stderr, `%s [flags] feedgen manga -body JSON
 
 Manga implements manga.
     -body JSON: 
-    -feed-type STRING: 
 
 Example:
     `+os.Args[0]+` feedgen manga --body '{
       "titles": [
-         "Nihil inventore non.",
-         "Rem aut culpa aut ducimus."
+         "Ut dolores modi dolor dicta enim."
       ]
-   }' --feed-type "rss"
+   }'
 `, os.Args[0])
 }
 
 func feedgenViewMangaUsage() {
-	fmt.Fprintf(os.Stderr, `%s [flags] feedgen view-manga -hash STRING
+	fmt.Fprintf(os.Stderr, `%s [flags] feedgen view-manga -hash STRING -feed-type STRING
 
 ViewManga implements viewManga.
     -hash STRING: Identifier of previously created manga feed
+    -feed-type STRING: 
 
 Example:
-    `+os.Args[0]+` feedgen view-manga --hash "Alias quaerat cupiditate."
+    `+os.Args[0]+` feedgen view-manga --hash "Qui fuga porro quia." --feed-type "atom"
 `, os.Args[0])
 }

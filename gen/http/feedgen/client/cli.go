@@ -17,13 +17,13 @@ import (
 
 // BuildMangaPayload builds the payload for the feedgen manga endpoint from CLI
 // flags.
-func BuildMangaPayload(feedgenMangaBody string, feedgenMangaFeedType string) (*feedgen.MangaPayload, error) {
+func BuildMangaPayload(feedgenMangaBody string) (*feedgen.MangaPayload, error) {
 	var err error
 	var body MangaRequestBody
 	{
 		err = json.Unmarshal([]byte(feedgenMangaBody), &body)
 		if err != nil {
-			return nil, fmt.Errorf("invalid JSON for body, example of valid JSON:\n%s", "'{\n      \"titles\": [\n         \"Nihil inventore non.\",\n         \"Rem aut culpa aut ducimus.\"\n      ]\n   }'")
+			return nil, fmt.Errorf("invalid JSON for body, example of valid JSON:\n%s", "'{\n      \"titles\": [\n         \"Ut dolores modi dolor dicta enim.\"\n      ]\n   }'")
 		}
 		if body.Titles == nil {
 			err = goa.MergeErrors(err, goa.MissingFieldError("titles", "body"))
@@ -38,12 +38,6 @@ func BuildMangaPayload(feedgenMangaBody string, feedgenMangaFeedType string) (*f
 			return nil, err
 		}
 	}
-	var feedType string
-	{
-		if feedgenMangaFeedType != "" {
-			feedType = feedgenMangaFeedType
-		}
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -54,19 +48,25 @@ func BuildMangaPayload(feedgenMangaBody string, feedgenMangaFeedType string) (*f
 			v.Titles[i] = val
 		}
 	}
-	v.FeedType = feedType
 	return v, nil
 }
 
 // BuildViewMangaPayload builds the payload for the feedgen viewManga endpoint
 // from CLI flags.
-func BuildViewMangaPayload(feedgenViewMangaHash string) (*feedgen.ViewMangaPayload, error) {
+func BuildViewMangaPayload(feedgenViewMangaHash string, feedgenViewMangaFeedType string) (*feedgen.ViewMangaPayload, error) {
 	var hash string
 	{
 		hash = feedgenViewMangaHash
 	}
+	var feedType string
+	{
+		if feedgenViewMangaFeedType != "" {
+			feedType = feedgenViewMangaFeedType
+		}
+	}
 	payload := &feedgen.ViewMangaPayload{
-		Hash: hash,
+		Hash:     hash,
+		FeedType: feedType,
 	}
 	return payload, nil
 }

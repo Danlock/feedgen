@@ -18,7 +18,7 @@ type Service interface {
 	// Manga implements manga.
 	Manga(context.Context, *MangaPayload) (res string, err error)
 	// ViewManga implements viewManga.
-	ViewManga(context.Context, *ViewMangaPayload) (res *ViewMangaResult, err error)
+	ViewManga(context.Context, *ViewMangaPayload) (res string, err error)
 }
 
 // ServiceName is the name of the service as defined in the design. This is the
@@ -33,8 +33,6 @@ var MethodNames = [2]string{"manga", "viewManga"}
 
 // MangaPayload is the payload type of the feedgen service manga method.
 type MangaPayload struct {
-	// RSS, Atom, or JSON Feed
-	FeedType string
 	// List of manga titles to subscribe to
 	Titles []string
 }
@@ -43,12 +41,8 @@ type MangaPayload struct {
 type ViewMangaPayload struct {
 	// Identifier of previously created manga feed
 	Hash string
-}
-
-// ViewMangaResult is the result type of the feedgen service viewManga method.
-type ViewMangaResult struct {
-	Feed        []byte
-	ContentType string
+	// RSS, Atom, or JSON Feed
+	FeedType string
 }
 
 // MakeNotFound builds a goa.ServiceError from an error.

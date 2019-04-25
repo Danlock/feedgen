@@ -2,6 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/gob"
+	"encoding/json"
+	"fmt"
+	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"os"
@@ -29,7 +34,7 @@ func handleHTTPServer(ctx context.Context, u *url.URL, wg *sync.WaitGroup, manga
 	// see goa.design/encoding.
 	var (
 		dec = goahttp.RequestDecoder
-		enc = goahttp.ResponseEncoder
+		enc = encoder
 	)
 
 	// Build the service HTTP request multiplexer and configure it to serve
@@ -89,4 +94,85 @@ func errorHandler() func(context.Context, http.ResponseWriter, error) {
 		w.Write([]byte("[" + id + "] Something went wrong"))
 		logger.Errf(ctx, "%s", err.Error())
 	}
+}
+
+type stringEncoder struct{ w io.Writer }
+
+func (e *stringEncoder) Encode(v interface{}) error {
+	var err error
+	switch c := v.(type) {
+	case string:
+		_, err = e.w.Write([]byte(c))
+	case *string: // v may be a string pointer when the Response Body is set to the field of a custom response type.
+		if c != nil {
+			_, err = e.w.Write([]byte(*c))
+		}
+	case []byte:
+		_, err = e.w.Write(c)
+	default:
+		err = fmt.Errorf("stringEncoder can't encode %T", c)
+	}
+	return err
+}
+
+// encoder is a copy of goa's default encoder, except it does not use go's XML Encoder.
+// gorilla/feeds already provides correct xml, so this avoids decoding xml twice
+
+func encoder(ctx context.Context, w http.ResponseWriter) goahttp.Encoder {
+	negotiate := func(a string) (goahttp.Encoder, string) {
+		switch a {
+		case "", "application/json":
+			// default to JSON
+			return json.NewEncoder(w), "application/json"
+		case "application/xml":
+			return &stringEncoder{w}, "application/xml"
+		case "application/gob":
+			return gob.NewEncoder(w), "application/gob"
+		case "text/html":
+			return &stringEncoder{w}, "text/html"
+		default:
+			return nil, ""
+		}
+	}
+	var accept string
+
+	if a := ctx.Value(goahttp.AcceptTypeKey); a != nil {
+		accept = a.(string)
+	}
+
+	var ct string
+
+	if a := ctx.Value(goahttp.ContentTypeKey); a != nil {
+		ct = a.(string)
+	}
+
+	var (
+		enc goahttp.Encoder
+		mt  string
+		err error
+	)
+
+	if ct != "" {
+		// If content type explicitly set in the DSL, infer the response encoder
+		// from the content type context key.
+		if mt, _, err = mime.ParseMediaType(ct); err == nil {
+			enc, _ = negotiate(ct)
+		}
+	} else {
+		// If Accept header exists in the request, infer the response encoder
+		// from the header value.
+		if enc, mt = negotiate(accept); enc == nil {
+			// attempt to normalize
+			if mt, _, err = mime.ParseMediaType(accept); err == nil {
+				enc, mt = negotiate(mt)
+			}
+		}
+
+	}
+	if enc == nil {
+		enc, mt = negotiate("")
+	}
+
+	goahttp.SetContentType(w, mt)
+	return enc
 }

@@ -83,10 +83,15 @@ func (c *Client) Manga() goa.Endpoint {
 // service viewManga server.
 func (c *Client) ViewManga() goa.Endpoint {
 	var (
+		encodeRequest  = EncodeViewMangaRequest(c.encoder)
 		decodeResponse = DecodeViewMangaResponse(c.decoder, c.RestoreResponseBody)
 	)
 	return func(ctx context.Context, v interface{}) (interface{}, error) {
 		req, err := c.BuildViewMangaRequest(ctx, v)
+		if err != nil {
+			return nil, err
+		}
+		err = encodeRequest(req, v)
 		if err != nil {
 			return nil, err
 		}

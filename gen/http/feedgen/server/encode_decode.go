@@ -12,7 +12,6 @@ import (
 	"io"
 	"net/http"
 
-	feedgen "github.com/danlock/go-rss-gen/gen/feedgen"
 	goa "goa.design/goa"
 	goahttp "goa.design/goa/http"
 )
@@ -48,23 +47,7 @@ func DecodeMangaRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.D
 		if err != nil {
 			return nil, err
 		}
-
-		var (
-			feedType string
-		)
-		feedTypeRaw := r.URL.Query().Get("feedType")
-		if feedTypeRaw != "" {
-			feedType = feedTypeRaw
-		} else {
-			feedType = "json"
-		}
-		if !(feedType == "rss" || feedType == "atom" || feedType == "json") {
-			err = goa.MergeErrors(err, goa.InvalidEnumValueError("feedType", feedType, []interface{}{"rss", "atom", "json"}))
-		}
-		if err != nil {
-			return nil, err
-		}
-		payload := NewMangaPayload(&body, feedType)
+		payload := NewMangaPayload(&body)
 
 		return payload, nil
 	}
@@ -111,10 +94,10 @@ func EncodeMangaError(encoder func(context.Context, http.ResponseWriter) goahttp
 // feedgen viewManga endpoint.
 func EncodeViewMangaResponse(encoder func(context.Context, http.ResponseWriter) goahttp.Encoder) func(context.Context, http.ResponseWriter, interface{}) error {
 	return func(ctx context.Context, w http.ResponseWriter, v interface{}) error {
-		res := v.(*feedgen.ViewMangaResult)
+		res := v.(string)
+		ctx = context.WithValue(ctx, goahttp.ContentTypeKey, "application/xml")
 		enc := encoder(ctx, w)
-		body := res.Feed
-		w.Header().Set("Content-Type", res.ContentType)
+		body := res
 		w.WriteHeader(http.StatusOK)
 		return enc.Encode(body)
 	}
@@ -125,12 +108,26 @@ func EncodeViewMangaResponse(encoder func(context.Context, http.ResponseWriter) 
 func DecodeViewMangaRequest(mux goahttp.Muxer, decoder func(*http.Request) goahttp.Decoder) func(*http.Request) (interface{}, error) {
 	return func(r *http.Request) (interface{}, error) {
 		var (
-			hash string
+			hash     string
+			feedType string
+			err      error
 
 			params = mux.Vars(r)
 		)
 		hash = params["hash"]
-		payload := NewViewMangaPayload(hash)
+		feedTypeRaw := r.URL.Query().Get("feedType")
+		if feedTypeRaw != "" {
+			feedType = feedTypeRaw
+		} else {
+			feedType = "rss"
+		}
+		if !(feedType == "rss" || feedType == "atom") {
+			err = goa.MergeErrors(err, goa.InvalidEnumValueError("feedType", feedType, []interface{}{"rss", "atom"}))
+		}
+		if err != nil {
+			return nil, err
+		}
+		payload := NewViewMangaPayload(hash, feedType)
 
 		return payload, nil
 	}

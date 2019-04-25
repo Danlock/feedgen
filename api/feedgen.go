@@ -49,18 +49,21 @@ func (s *fgService) Manga(ctx context.Context, p *feedgen.MangaPayload) (string,
 	return s.hostURI + client.ViewMangaFeedgenPath(hash), nil
 }
 
-func (s *fgService) ViewManga(ctx context.Context, p *feedgen.ViewMangaPayload) (*feedgen.ViewMangaResult, error) {
+func (s *fgService) ViewManga(ctx context.Context, p *feedgen.ViewMangaPayload) (string, error) {
 	feed := db.MangaFeed{}
 	if err := s.mangaStore.GetFeed(ctx, p.Hash, &feed); err != nil {
-		return nil, err
+		return "", err
 	}
 	releases := make([]db.DBMangaRelease, 0, len(feed.Titles))
 	if err := s.mangaStore.FindReleasesByTitles(ctx, feed.Titles, &releases); err != nil {
 		logger.Errf(ctx, "Failed to find releases for those titles err:%+v", err)
-		return nil, err
+		return "", err
+	}
+	if len(releases) == 0 {
+		logger.Debugf(ctx, "Found no releases for feed %+v, returning empty feed", feed)
 	}
 	mangaFeed := feeds.Feed{
-		Title:       "MangaUpdates Release Page Feed",
+		Title:       "Feedgen Manga Releases Feed",
 		Description: "This feed has the latest releases for the requested titles from MangaUpdates, if those titles have had a release recent enough to be in the database.",
 		Created:     feed.CreatedAt,
 		Link: &feeds.Link{
@@ -83,25 +86,22 @@ func (s *fgService) ViewManga(ctx context.Context, p *feedgen.ViewMangaPayload) 
 			},
 		})
 	}
-	var result string
-	var cType string
-	var err error
-	switch feed.Type {
-	case "json":
-		result, err = mangaFeed.ToJSON()
-		cType = "application/json"
+	mangaFeed.Sort(func(a, b *feeds.Item) bool { return a.Id < b.Id })
+	var (
+		result string
+		err    error
+	)
+	switch p.FeedType {
 	case "atom":
 		result, err = mangaFeed.ToAtom()
-		cType = "application/xml"
 	case "rss":
 		result, err = mangaFeed.ToRss()
-		cType = "application/xml"
 	default:
-		return nil, errors.New("Unsupported feed type")
+		return "", errors.New("Unsupported feed type")
 	}
 	if err != nil {
 		logger.Errf(ctx, "Failed creating feed %+v err:%+v", mangaFeed, err)
-		return nil, feedgen.MakeInternalServerError(errors.New(""))
+		return "", feedgen.MakeInternalServerError(errors.New(""))
 	}
-	return &feedgen.ViewMangaResult{Feed: []byte(result), ContentType: cType}, nil
+	return result, nil
 }

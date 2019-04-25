@@ -181,17 +181,6 @@ func NewMangaInternalServerError(body *MangaInternalServerErrorResponseBody) *go
 	return v
 }
 
-// NewViewMangaResultOK builds a "feedgen" service "viewManga" endpoint result
-// from a HTTP "OK" response.
-func NewViewMangaResultOK(body []byte, contentType string) *feedgen.ViewMangaResult {
-	v := body
-	res := &feedgen.ViewMangaResult{
-		Feed: v,
-	}
-	res.ContentType = contentType
-	return res
-}
-
 // NewViewMangaNotFound builds a feedgen service viewManga endpoint NotFound
 // error.
 func NewViewMangaNotFound(body *ViewMangaNotFoundResponseBody) *goa.ServiceError {

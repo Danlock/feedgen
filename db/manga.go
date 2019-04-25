@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/danlock/go-rss-gen/gen/feedgen"
@@ -57,7 +58,7 @@ DO NOTHING;`
 		muidReleaseArray = append(muidReleaseArray, m.MUID, m.LatestRelease, m.DisplayTitle)
 		for _, t := range m.Titles {
 			titleValues += fmt.Sprintf(" (?,?),")
-			muidTitleArray = append(muidTitleArray, m.MUID, t)
+			muidTitleArray = append(muidTitleArray, m.MUID, strings.TrimSpace(strings.ToLower(t)))
 		}
 	}
 	// Trim off trailing commas
@@ -171,7 +172,7 @@ func (m *mangaStore) FindReleasesByTitles(ctx context.Context, titles []string, 
 	WHERE mangatitle.title IN (?);`
 	titleVals := make([]interface{}, 0, len(titles))
 	for _, t := range titles {
-		titleVals = append(titleVals, t)
+		titleVals = append(titleVals, strings.TrimSpace(strings.ToLower(t)))
 	}
 	releaseQuery, args, err := sqlx.In(releaseQueryRaw, titleVals)
 	if err != nil {
@@ -237,23 +238,22 @@ type MangaFeed struct {
 
 func (m *mangaStore) UpsertFeed(ctx context.Context, p *feedgen.MangaPayload) (string, error) {
 	h := sha256.New()
-	h.Write([]byte(p.FeedType))
 	for _, t := range p.Titles {
 		h.Write([]byte(t))
 	}
 	mf := MangaFeed{
 		Hash:      base64.RawURLEncoding.EncodeToString(h.Sum(nil)),
 		Titles:    p.Titles,
-		Type:      p.FeedType,
 		CreatedAt: time.Now(),
 	}
 	query := `
-	INSERT INTO mangafeed (hash, titles, type)
-	VALUES	($1,$2,$3)
+	INSERT INTO mangafeed (hash, titles)
+	VALUES	(?,?)
 	ON CONFLICT (hash)
 	DO NOTHING;
 `
-	_, err := m.db.ExecContext(ctx, query, mf.Hash, mf.Titles, mf.Type)
+	query = m.db.Rebind(query)
+	_, err := m.db.ExecContext(ctx, query, mf.Hash, mf.Titles)
 	if err != nil {
 		logger.Errf(ctx, "Failed to upsert feeds with %s err: %s", query, ErrDetails(err))
 		return "", errors.WithStack(err)
@@ -263,7 +263,7 @@ func (m *mangaStore) UpsertFeed(ctx context.Context, p *feedgen.MangaPayload) (s
 
 func (m *mangaStore) GetFeed(ctx context.Context, hash string, outPtr interface{}) error {
 	query := `
-	SELECT type,titles,created_at FROM mangafeed WHERE hash=?;
+	SELECT titles,created_at FROM mangafeed WHERE hash=?;
 	`
 	query = m.db.Rebind(query)
 	if err := m.db.GetContext(ctx, outPtr, query, hash); err != nil {

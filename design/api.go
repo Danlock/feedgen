@@ -39,10 +39,6 @@ var _ = dsl.Service("feedgen", func() {
 
 	dsl.Method("manga", func() {
 		dsl.Payload(func() {
-			dsl.Attribute("feedType", dsl.String, "RSS, Atom, or JSON Feed", func() {
-				dsl.Enum("rss", "atom", "json")
-				dsl.Default("json")
-			})
 			dsl.Attribute("titles", dsl.ArrayOf(dsl.String), "List of manga titles to subscribe to", func() {
 				dsl.MinLength(1)
 				dsl.MaxLength(2048)
@@ -52,7 +48,6 @@ var _ = dsl.Service("feedgen", func() {
 		dsl.Result(dsl.String, "path for desired feed")
 		dsl.HTTP(func() {
 			dsl.POST("/manga")
-			dsl.Param("feedType")
 			dsl.Response(dsl.StatusOK)
 			SetErrors(ResponseMap, dsl.StatusNotFound, dsl.StatusBadGateway, dsl.StatusInternalServerError)
 		})
@@ -60,19 +55,19 @@ var _ = dsl.Service("feedgen", func() {
 	dsl.Method("viewManga", func() {
 		dsl.Payload(func() {
 			dsl.Attribute("hash", dsl.String, "Identifier of previously created manga feed")
+			dsl.Attribute("feedType", dsl.String, "RSS, Atom, or JSON Feed", func() {
+				dsl.Enum("rss", "atom")
+				dsl.Default("rss")
+			})
 			dsl.Required("hash")
 		})
-		dsl.Result(func() {
-			dsl.Attribute("feed", dsl.Bytes)
-			dsl.Attribute("contentType", dsl.String)
-			dsl.Required("feed", "contentType")
-		})
+		dsl.Result(dsl.String)
 		dsl.HTTP(func() {
 			dsl.GET("/manga/{hash}")
 			dsl.Param("hash")
+			dsl.Param("feedType")
 			dsl.Response(dsl.StatusOK, func() {
-				dsl.Header("contentType:Content-Type")
-				dsl.Body("feed")
+				dsl.ContentType("application/xml")
 			})
 			SetErrors(ResponseMap, dsl.StatusNotFound, dsl.StatusBadGateway, dsl.StatusInternalServerError)
 		})

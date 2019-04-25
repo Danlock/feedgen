@@ -20,16 +20,6 @@ paths:
       summary: manga feedgen
       operationId: feedgen#manga
       parameters:
-      - name: feedType
-        in: query
-        description: RSS, Atom, or JSON Feed
-        required: false
-        type: string
-        default: json
-        enum:
-        - rss
-        - atom
-        - json
       - name: MangaRequestBody
         in: body
         required: true
@@ -62,21 +52,28 @@ paths:
       - feedgen
       summary: viewManga feedgen
       operationId: feedgen#viewManga
+      produces:
+      - application/xml
       parameters:
       - name: hash
         in: path
         description: Identifier of previously created manga feed
         required: true
         type: string
+      - name: feedType
+        in: query
+        description: RSS, Atom, or JSON Feed
+        required: false
+        type: string
+        default: rss
+        enum:
+        - rss
+        - atom
       responses:
         "200":
           description: OK response.
           schema:
             type: string
-            format: byte
-          headers:
-            Content-Type:
-              type: string
         "404":
           description: Not Found response.
           schema:
@@ -100,16 +97,15 @@ definitions:
         type: array
         items:
           type: string
-          example: Labore dolor qui.
+          example: Quas impedit ratione esse.
         description: List of manga titles to subscribe to
         example:
-        - Rem et aliquam non.
-        - Velit temporibus qui voluptatem sunt.
+        - Ut labore quis atque nobis debitis.
         minItems: 1
         maxItems: 2048
     example:
       titles:
-      - Quasi qui sit et magni suscipit.
+      - Culpa atque et.
     required:
     - titles
   Feedgenmanga_BadGateway_response_body:
@@ -137,14 +133,14 @@ definitions:
       temporary:
         type: boolean
         description: Is the error temporary?
-        example: true
+        example: false
       timeout:
         type: boolean
         description: Is the error a timeout?
-        example: true
+        example: false
     description: manga_BadGateway_response_body result type (default view)
     example:
-      fault: true
+      fault: false
       id: 123abc
       message: parameter 'p' must be an integer
       name: bad_request
@@ -182,19 +178,19 @@ definitions:
       temporary:
         type: boolean
         description: Is the error temporary?
-        example: true
+        example: false
       timeout:
         type: boolean
         description: Is the error a timeout?
         example: false
     description: manga_InternalServerError_response_body result type (default view)
     example:
-      fault: false
+      fault: true
       id: 123abc
       message: parameter 'p' must be an integer
       name: bad_request
-      temporary: false
-      timeout: true
+      temporary: true
+      timeout: false
     required:
     - name
     - id
@@ -238,8 +234,8 @@ definitions:
       id: 123abc
       message: parameter 'p' must be an integer
       name: bad_request
-      temporary: true
-      timeout: false
+      temporary: false
+      timeout: true
     required:
     - name
     - id
@@ -283,7 +279,7 @@ definitions:
       id: 123abc
       message: parameter 'p' must be an integer
       name: bad_request
-      temporary: false
+      temporary: true
       timeout: false
     required:
     - name
@@ -299,7 +295,7 @@ definitions:
       fault:
         type: boolean
         description: Is the error a server-side fault?
-        example: false
+        example: true
       id:
         type: string
         description: ID is a unique identifier for this particular occurrence of the
@@ -321,7 +317,7 @@ definitions:
       timeout:
         type: boolean
         description: Is the error a timeout?
-        example: true
+        example: false
     description: viewManga_InternalServerError_response_body result type (default
       view)
     example:
@@ -329,8 +325,8 @@ definitions:
       id: 123abc
       message: parameter 'p' must be an integer
       name: bad_request
-      temporary: true
-      timeout: false
+      temporary: false
+      timeout: true
     required:
     - name
     - id
@@ -363,18 +359,18 @@ definitions:
       temporary:
         type: boolean
         description: Is the error temporary?
-        example: true
+        example: false
       timeout:
         type: boolean
         description: Is the error a timeout?
         example: false
     description: viewManga_NotFound_response_body result type (default view)
     example:
-      fault: true
+      fault: false
       id: 123abc
       message: parameter 'p' must be an integer
       name: bad_request
-      temporary: false
+      temporary: true
       timeout: false
     required:
     - name

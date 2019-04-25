@@ -15,7 +15,6 @@ import (
 	"net/url"
 
 	feedgen "github.com/danlock/go-rss-gen/gen/feedgen"
-	goa "goa.design/goa"
 	goahttp "goa.design/goa/http"
 )
 
@@ -42,9 +41,6 @@ func EncodeMangaRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.
 		if !ok {
 			return goahttp.ErrInvalidType("feedgen", "manga", "*feedgen.MangaPayload", v)
 		}
-		values := req.URL.Query()
-		values.Add("feedType", p.FeedType)
-		req.URL.RawQuery = values.Encode()
 		body := NewMangaRequestBody(p)
 		if err := encoder(req).Encode(&body); err != nil {
 			return goahttp.ErrEncodingError("feedgen", "manga", err)
@@ -160,6 +156,21 @@ func (c *Client) BuildViewMangaRequest(ctx context.Context, v interface{}) (*htt
 	return req, nil
 }
 
+// EncodeViewMangaRequest returns an encoder for requests sent to the feedgen
+// viewManga server.
+func EncodeViewMangaRequest(encoder func(*http.Request) goahttp.Encoder) func(*http.Request, interface{}) error {
+	return func(req *http.Request, v interface{}) error {
+		p, ok := v.(*feedgen.ViewMangaPayload)
+		if !ok {
+			return goahttp.ErrInvalidType("feedgen", "viewManga", "*feedgen.ViewMangaPayload", v)
+		}
+		values := req.URL.Query()
+		values.Add("feedType", p.FeedType)
+		req.URL.RawQuery = values.Encode()
+		return nil
+	}
+}
+
 // DecodeViewMangaResponse returns a decoder for responses returned by the
 // feedgen viewManga endpoint. restoreBody controls whether the response body
 // should be restored after having been read.
@@ -185,26 +196,14 @@ func DecodeViewMangaResponse(decoder func(*http.Response) goahttp.Decoder, resto
 		switch resp.StatusCode {
 		case http.StatusOK:
 			var (
-				body []byte
+				body string
 				err  error
 			)
 			err = decoder(resp).Decode(&body)
 			if err != nil {
 				return nil, goahttp.ErrDecodingError("feedgen", "viewManga", err)
 			}
-			var (
-				contentType string
-			)
-			contentTypeRaw := resp.Header.Get("Content-Type")
-			if contentTypeRaw == "" {
-				err = goa.MergeErrors(err, goa.MissingFieldError("Content-Type", "header"))
-			}
-			contentType = contentTypeRaw
-			if err != nil {
-				return nil, goahttp.ErrValidationError("feedgen", "viewManga", err)
-			}
-			res := NewViewMangaResultOK(body, contentType)
-			return res, nil
+			return body, nil
 		case http.StatusNotFound:
 			var (
 				body ViewMangaNotFoundResponseBody

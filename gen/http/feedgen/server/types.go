@@ -213,20 +213,20 @@ func NewViewMangaInternalServerErrorResponseBody(res *goa.ServiceError) *ViewMan
 }
 
 // NewMangaPayload builds a feedgen service manga endpoint payload.
-func NewMangaPayload(body *MangaRequestBody, feedType string) *feedgen.MangaPayload {
+func NewMangaPayload(body *MangaRequestBody) *feedgen.MangaPayload {
 	v := &feedgen.MangaPayload{}
 	v.Titles = make([]string, len(body.Titles))
 	for i, val := range body.Titles {
 		v.Titles[i] = val
 	}
-	v.FeedType = feedType
 	return v
 }
 
 // NewViewMangaPayload builds a feedgen service viewManga endpoint payload.
-func NewViewMangaPayload(hash string) *feedgen.ViewMangaPayload {
+func NewViewMangaPayload(hash string, feedType string) *feedgen.ViewMangaPayload {
 	return &feedgen.ViewMangaPayload{
-		Hash: hash,
+		Hash:     hash,
+		FeedType: feedType,
 	}
 }
 
