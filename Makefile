@@ -12,4 +12,4 @@ gen: design/*
 	# @goa gen github.com/danlock/go-rss-gen/design
 
 build:
-	go build -ldflags "$(LDFLAGS)" -o ./bin/feedgen ./cmd/feedgen
+	go build -race -ldflags "$(LDFLAGS)" -o ./bin/feedgen ./cmd/feedgen

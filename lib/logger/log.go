@@ -51,7 +51,7 @@ func getLogCtx(ctx context.Context) string {
 }
 
 func SetupLogger(prefix string) *log.Logger {
-	lgr := log.New(os.Stderr, prefix, log.Ltime|log.LUTC|log.Lshortfile)
+	lgr := log.New(os.Stderr, prefix, log.Ldate|log.Ltime|log.Lmicroseconds|log.LUTC|log.Lshortfile)
 	log.SetFlags(lgr.Flags())
 	log.SetPrefix(lgr.Prefix())
 	return lgr
