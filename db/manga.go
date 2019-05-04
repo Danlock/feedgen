@@ -8,7 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/danlock/go-rss-gen/gen/feedgen"
+	"github.com/danlock/go-rss-gen/gen/models"
+
 	"github.com/danlock/go-rss-gen/lib/logger"
 	"github.com/danlock/go-rss-gen/scrape"
 	"github.com/pkg/errors"
@@ -25,7 +26,7 @@ type MangaStorer interface {
 	UpsertManga(context.Context, []scrape.MangaInfo) error
 	UpsertRelease(context.Context, []scrape.MangaRelease) error
 	FilterOutReleasesWithoutMangaInDB(context.Context, []scrape.MangaRelease) ([]scrape.MangaRelease, error)
-	UpsertFeed(context.Context, *feedgen.MangaPayload) (string, error)
+	UpsertFeed(context.Context, *models.FeedgenMangaRequestBody) (string, error)
 	GetFeed(context.Context, string, interface{}) error
 }
 
@@ -109,7 +110,7 @@ func (m *mangaStore) UpsertRelease(ctx context.Context, releases []scrape.MangaR
 	if releaesMissingMUIDs > 0 {
 		logger.Errf(ctx, "Skipping %d releases missing MUIDs", releaesMissingMUIDs)
 	}
-	logger.Debugf(ctx, "Preparing to upserting %d releases", len(seenMUID))
+	logger.Dbgf(ctx, "Preparing to upserting %d releases", len(seenMUID))
 
 	releaseValues = releaseValues[:len(releaseValues)-1]
 	releaseQuery = fmt.Sprintf(releaseQuery, releaseValues)
@@ -118,7 +119,7 @@ func (m *mangaStore) UpsertRelease(ctx context.Context, releases []scrape.MangaR
 		logger.Errf(ctx, "Failed to get upsert release with query %s and err: %+v", releaseQuery, ErrDetails(err))
 		return errors.WithStack(err)
 	}
-	logger.Debugf(ctx, "Upserted %d releases", len(valuesArr)/3)
+	logger.Dbgf(ctx, "Upserted %d releases", len(valuesArr)/3)
 	return nil
 }
 
@@ -236,7 +237,7 @@ type MangaFeed struct {
 	CreatedAt time.Time `db:"created_at"`
 }
 
-func (m *mangaStore) UpsertFeed(ctx context.Context, p *feedgen.MangaPayload) (string, error) {
+func (m *mangaStore) UpsertFeed(ctx context.Context, p *models.FeedgenMangaRequestBody) (string, error) {
 	h := sha256.New()
 	for _, t := range p.Titles {
 		h.Write([]byte(t))

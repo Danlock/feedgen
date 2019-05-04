@@ -1,0 +1,94 @@
+swagger: "2.0"
+info:
+  title: Feed Generator
+  description: Generates update feeds for different types of media 
+  version: ""
+schemes:
+- "http"
+consumes:
+- application/json
+- application/xml
+produces:
+- application/json
+- application/xml
+paths:
+  /feed/manga:
+    post:
+      summary: Creates a URL containing the current feed for the requested manga titles
+      operationId: feedgen#Manga
+      parameters:
+      - name: MangaRequestBody
+        in: body
+        required: true
+        schema:
+          $ref: '#/definitions/FeedgenMangaRequestBody'
+          required:
+          - titles
+      responses:
+        "200":
+          description: OK response.
+          schema:
+            type: string
+        "404":
+          description: Not Found response.
+        "500":
+          description: Internal Server Error response.
+        "502":
+          description: Bad Gateway response.
+      schemes:
+      - http
+  /feed/manga/{hash}:
+    get:
+      summary: Returns an RSS Feed of the manga titles. Can return atom and json feeds as well.
+      operationId: feedgen#viewManga
+      produces:
+      - application/xml
+      - application/json
+      parameters:
+      - name: hash
+        in: path
+        description: Identifier of previously created manga feed
+        required: true
+        type: string
+      - name: feedType
+        in: query
+        description: RSS, Atom, or JSON Feed
+        required: false
+        type: string
+        default: rss
+        enum:
+        - rss
+        - atom
+      responses:
+        "200":
+          description: OK response.
+          schema:
+            type: string
+        "404":
+          description: Not Found response.
+        "500":
+          description: Internal Server Error response.
+        "502":
+          description: Bad Gateway response.
+      schemes:
+      - http
+definitions:
+  FeedgenMangaRequestBody:
+    title: FeedgenMangaRequestBody
+    type: object
+    properties:
+      titles:
+        type: array
+        items:
+          type: string
+          example: Quas impedit ratione esse.
+        description: List of manga titles to subscribe to
+        example:
+        - Ut labore quis atque nobis debitis.
+        minItems: 1
+        maxItems: 2048
+    example:
+      titles:
+      - Culpa atque et.
+    required:
+    - titles

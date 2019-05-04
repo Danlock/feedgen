@@ -182,7 +182,7 @@ func QueryMUSeriesIds(ctx context.Context, ids []int) ([]MangaInfo, error) {
 				return
 			}
 		}
-		logger.Debugf(ctx, "Finished sending ids to idChan")
+		logger.Dbgf(ctx, "Finished sending ids to idChan")
 	}()
 	// Create worker goroutines that do work on each id and end on chan close
 	infoChan := make(chan MangaInfo)

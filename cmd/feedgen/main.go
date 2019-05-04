@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"encoding/xml"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	netpprof "net/http/pprof"
 	"net/url"
@@ -13,15 +16,20 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"strconv"
-	"sync"
 	"time"
 
-	"github.com/danlock/go-rss-gen/db"
-	"github.com/danlock/go-rss-gen/scrape"
+	"github.com/danlock/go-rss-gen/api"
 
-	"github.com/jmoiron/sqlx"
+	openruntime "github.com/go-openapi/runtime"
+
+	"github.com/danlock/go-rss-gen/db"
+	"github.com/danlock/go-rss-gen/gen/restapi"
+	"github.com/danlock/go-rss-gen/gen/restapi/operations"
+	"github.com/danlock/go-rss-gen/scrape"
+	loads "github.com/go-openapi/loads"
 
 	"github.com/danlock/go-rss-gen/lib"
+	"github.com/jmoiron/sqlx"
 
 	"github.com/danlock/go-rss-gen/lib/logger"
 
@@ -47,7 +55,7 @@ Usage of %s:
 func main() {
 	logger.SetupLogger(buildTag + " ")
 	ctx := context.Background()
-	logger.Infof(ctx, "%s Built With: %s Debug Mode: %t", buildInfo, runtime.Version(), logger.IsDebug())
+	logger.Infof(ctx, "%s Built With: %s", buildInfo, runtime.Version())
 	// Define command line flags, add any other flag required to configure the
 	// service.
 	var (
@@ -83,10 +91,10 @@ func main() {
 		if logger.IsDebug() {
 			f, err := os.Create(fmt.Sprintf("%s/%s_goroutine_trace.txt", os.TempDir(), path.Base(os.Args[0])))
 			if err == nil {
-				logger.Debugf(ctx, "Writing pprof profiles to %s", f.Name())
+				logger.Dbgf(ctx, "Writing pprof profiles to %s", f.Name())
 				pprof.Lookup("goroutine").WriteTo(f, 2)
 			} else {
-				logger.Debugf(ctx, "Failed to write pprof profiles err: %+v", err)
+				logger.Dbgf(ctx, "Failed to write pprof profiles err: %+v", err)
 			}
 		}
 		cancel()
@@ -101,7 +109,7 @@ func main() {
 		mux.HandleFunc("/debug/pprof/symbol", netpprof.Symbol)
 		mux.HandleFunc("/debug/pprof/trace", netpprof.Trace)
 		debugURL := "localhost:18080"
-		logger.Infof(ctx, "Serviing runtime profiling server on %s...", debugURL)
+		logger.Infof(ctx, "Serving runtime profiling server on %s...", debugURL)
 		http.ListenAndServe(debugURL, mux)
 	}()
 
@@ -127,17 +135,14 @@ func main() {
 		}
 	case "api":
 		u, err := url.Parse(flag.Arg(1))
-		if err != nil {
-			defaultURL := "http://localhost:80"
+		if flag.Arg(1) == "" || err != nil {
+			defaultURL := "http://localhost:8080"
 			logger.Errf(ctx, "invalid URL %s: %s, using default %s", flag.Arg(1), err, defaultURL)
 			if u, err = url.Parse(defaultURL); err != nil {
 				panic("defaultURL is invalid URL")
 			}
 		}
-		var wg sync.WaitGroup
-		handleHTTPServer(ctx, u, &wg, mangaStore)
-		// Wait for shutdown.
-		wg.Wait()
+		handleHTTPServer(ctx, u, apiModels{mangaStore: mangaStore})
 	default:
 		logger.Infof(ctx, "Available commands are poll,api,populate-db")
 		helpAndQuit()
@@ -205,5 +210,57 @@ func handlePoll(ctx context.Context, mangaStore db.MangaStorer, freq time.Durati
 			return ctx.Err()
 		}
 	}
-	return nil
+}
+
+type apiModels struct {
+	mangaStore db.MangaStorer
+}
+
+func handleHTTPServer(ctx context.Context, u *url.URL, models apiModels) {
+	swaggerSpec, err := loads.Embedded(restapi.SwaggerJSON, restapi.FlatSwaggerJSON)
+	if err != nil {
+		logger.Errf(ctx, "%+v", err)
+		return
+	}
+	operationsAPI := operations.NewFeedgenAPI(swaggerSpec)
+	if err := operationsAPI.Validate(); err != nil {
+		logger.Errf(ctx, "%+v", err)
+		return
+	}
+	operationsAPI.JSONConsumer = openruntime.JSONConsumer()
+	operationsAPI.XMLConsumer = openruntime.XMLConsumer()
+	operationsAPI.Logger = func(msg string, vals ...interface{}) { logger.InfofWithCallDepth(ctx, 5, msg, vals) }
+
+	// lazyEncoder just check if the result is a string before encoding. If it is, it assumes it has already been encoded and sends it directly.
+	type encoder interface{ Encode(interface{}) error }
+	lazyEncoder := func(enc encoder, writer io.Writer, data interface{}) error {
+		if str, isString := data.(string); isString {
+			_, err := writer.Write([]byte(str))
+			return err
+		}
+		return enc.Encode(data)
+	}
+	operationsAPI.XMLProducer = openruntime.ProducerFunc(func(writer io.Writer, data interface{}) error {
+		return lazyEncoder(xml.NewEncoder(writer), writer, data)
+	})
+	operationsAPI.JSONProducer = openruntime.ProducerFunc(func(writer io.Writer, data interface{}) error {
+		enc := json.NewEncoder(writer)
+		enc.SetEscapeHTML(false)
+		return lazyEncoder(enc, writer, data)
+	})
+	fs := api.NewFeedSrvc(u.String(), models.mangaStore)
+	operationsAPI.FeedgenMangaHandler = operations.FeedgenMangaHandlerFunc(fs.Manga)
+	operationsAPI.FeedgenViewMangaHandler = operations.FeedgenViewMangaHandlerFunc(fs.ViewManga)
+
+	server := restapi.NewServer(operationsAPI)
+	defer server.Shutdown()
+	server.SetHandler(operationsAPI.Serve(logger.LoggerMiddleware()))
+	port, err := strconv.Atoi(u.Port())
+	if err != nil {
+		port = 80
+	}
+	server.Port = port
+	if err := server.Serve(); err != nil {
+		logger.Errf(ctx, "%+v", err)
+	}
 }
