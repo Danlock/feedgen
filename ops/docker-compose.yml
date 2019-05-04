@@ -18,3 +18,28 @@ services:
         max-size: "1k"
         max-file: "3"
     command: shell -c '/etc/cockroach/conf/init-user-db.sh & /cockroach/cockroach start --insecure --logtostderr=INFO;'
+  poll:
+    image: feedgen:latest
+    env_file: .env
+    restart: unless-stopped
+    ports:
+      - 18080:18080
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "100"
+    command: poll $FG_POLL_DURATION
+  api:
+    image: feedgen:latest
+    env_file: .env
+    restart: unless-stopped
+    ports:
+      - 18081:18081
+      - 8080:80
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "100"
+    command: api $FG_URI

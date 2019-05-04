@@ -108,7 +108,7 @@ func (m *mangaStore) UpsertRelease(ctx context.Context, releases []scrape.MangaR
 
 	}
 	if releaesMissingMUIDs > 0 {
-		logger.Errf(ctx, "Skipping %d releases missing MUIDs", releaesMissingMUIDs)
+		logger.Dbgf(ctx, "Skipping %d releases missing MUIDs", releaesMissingMUIDs)
 	}
 	logger.Dbgf(ctx, "Preparing to upsert %d releases", len(seenMUID))
 

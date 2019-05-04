@@ -1,8 +1,8 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/danlock/go-rss-gen/gen/restapi/operations"
@@ -86,18 +86,18 @@ func (s *FgService) ViewManga(p operations.FeedgenViewMangaParams) middleware.Re
 		},
 	}
 	for _, r := range releases {
+		l := &feeds.Link{
+			Href: scrape.GetMUPageURL(r.MUID),
+			Rel:  scrape.GetMUPageURL(r.MUID),
+		}
 		mangaFeed.Add(&feeds.Item{
-			Id:          strconv.Itoa(r.MUID),
-			Title:       r.Title,
-			Description: r.Release,
-			Created:     r.CreatedAt,
-			Author: &feeds.Author{
-				Name: r.Translators,
-			},
-			Link: &feeds.Link{
-				Href: scrape.GetMUPageURL(r.MUID),
-				Rel:  scrape.GetMUPageURL(r.MUID),
-			},
+			Id:      fmt.Sprintf("%d.%s", r.MUID, r.Release),
+			Title:   fmt.Sprintf("%s %s", r.Title, r.Release),
+			Content: fmt.Sprintf("%s %s released and translated by %s", r.Title, r.Release, r.Translators),
+			Created: r.CreatedAt,
+			Author:  &feeds.Author{Name: r.Translators},
+			Link:    l,
+			Source:  l,
 		})
 	}
 	mangaFeed.Sort(func(a, b *feeds.Item) bool { return a.Id < b.Id })

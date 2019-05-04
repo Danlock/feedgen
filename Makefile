@@ -13,3 +13,9 @@ gen: design/*
 
 build:
 	go build -race -ldflags "$(LDFLAGS)" -o ./bin/feedgen ./cmd/feedgen
+
+docker-build:
+	@docker build -t feedgen .
+
+docker-deploy: docker-build
+	@docker save -o /tmp/feedgen feedgen

@@ -57,7 +57,7 @@ func SetupLogger(prefix string) *log.Logger {
 	return lgr
 }
 
-// calldepth is set so that the line numbner of the callee hitting *F functions will be reported accurately.
+// calldepth is set so that the line number of the callee hitting *F functions will be reported accurately.
 const calldepth = 3
 
 func logf(ctx context.Context, cd int, prefix, msg string, vals ...interface{}) {

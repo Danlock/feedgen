@@ -73,11 +73,16 @@ func main() {
 	if err := godotenv.Overload(dotenvLocation); err != nil {
 		logger.Warnf(ctx, "No .env file found")
 	}
-
-	crdb, err := sqlx.Connect("postgres", lib.GetEnvOrWarn("CRDB_URI"))
-	if err != nil {
-		logger.Errf(ctx, "Unable to connect to db err:%+v", err)
-		os.Exit(1)
+	var crdb *sqlx.DB
+	var err error
+	for {
+		crdb, err = sqlx.Connect("postgres", lib.GetEnvOrWarn("CRDB_URI"))
+		if err != nil {
+			logger.Errf(ctx, "Unable to connect to db, retrying... err:%+v", err)
+			time.Sleep(250 * time.Millisecond)
+		} else {
+			break
+		}
 	}
 	mangaStore := db.NewMangaStore(crdb)
 
