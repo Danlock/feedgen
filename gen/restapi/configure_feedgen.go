@@ -10,7 +10,7 @@ import (
 	runtime "github.com/go-openapi/runtime"
 	middleware "github.com/go-openapi/runtime/middleware"
 
-	"github.com/danlock/go-rss-gen/gen/restapi/operations"
+	"github.com/danlock/feedgen/gen/restapi/operations"
 )
 
 //go:generate swagger generate server --target ../../gen --name Feedgen --spec ../../design/api.yml --exclude-main

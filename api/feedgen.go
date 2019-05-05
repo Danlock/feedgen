@@ -5,15 +5,15 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/danlock/go-rss-gen/gen/restapi/operations"
-	"github.com/danlock/go-rss-gen/lib"
+	"github.com/danlock/feedgen/gen/restapi/operations"
+	"github.com/danlock/feedgen/lib"
 
 	"github.com/go-openapi/runtime/middleware"
 
-	"github.com/danlock/go-rss-gen/lib/logger"
-	"github.com/danlock/go-rss-gen/scrape"
+	"github.com/danlock/feedgen/lib/logger"
+	"github.com/danlock/feedgen/scrape"
 
-	"github.com/danlock/go-rss-gen/db"
+	"github.com/danlock/feedgen/db"
 	"github.com/gorilla/feeds"
 )
 

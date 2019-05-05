@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/antchfx/htmlquery"
-	"github.com/danlock/go-rss-gen/lib"
-	"github.com/danlock/go-rss-gen/lib/logger"
+	"github.com/danlock/feedgen/lib"
+	"github.com/danlock/feedgen/lib/logger"
 	"github.com/pkg/errors"
 	"golang.org/x/net/html"
 )

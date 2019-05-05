@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/danlock/go-rss-gen/gen/models"
+	"github.com/danlock/feedgen/gen/models"
 
-	"github.com/danlock/go-rss-gen/lib/logger"
-	"github.com/danlock/go-rss-gen/scrape"
+	"github.com/danlock/feedgen/lib/logger"
+	"github.com/danlock/feedgen/scrape"
 	"github.com/pkg/errors"
 
 	"github.com/jmoiron/sqlx"

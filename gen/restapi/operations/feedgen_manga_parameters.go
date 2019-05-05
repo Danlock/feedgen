@@ -13,7 +13,7 @@ import (
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 
-	models "github.com/danlock/go-rss-gen/gen/models"
+	models "github.com/danlock/feedgen/gen/models"
 )
 
 // NewFeedgenMangaParams creates a new FeedgenMangaParams object

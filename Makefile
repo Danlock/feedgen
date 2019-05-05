@@ -9,7 +9,6 @@ LDFLAGS = -X 'main.buildTag=$(SHORTBUILDTAG)' -X 'main.buildInfo=$(LONGBUILDTAG)
 gen: design/*
 	@rm -rf gen/*
 	@swagger generate server -t gen -A feedgen -f design/api.yml --exclude-main
-	# @goa gen github.com/danlock/go-rss-gen/design
 
 build:
 	go build -race -ldflags "$(LDFLAGS)" -o ./bin/feedgen ./cmd/feedgen
@@ -19,3 +18,6 @@ docker-build:
 
 docker-deploy: docker-build
 	@docker save -o /tmp/feedgen feedgen
+
+version: 
+	@echo $(SHORTBUILDTAG)

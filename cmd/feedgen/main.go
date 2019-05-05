@@ -18,20 +18,20 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/danlock/go-rss-gen/api"
+	"github.com/danlock/feedgen/api"
 
 	openruntime "github.com/go-openapi/runtime"
 
-	"github.com/danlock/go-rss-gen/db"
-	"github.com/danlock/go-rss-gen/gen/restapi"
-	"github.com/danlock/go-rss-gen/gen/restapi/operations"
-	"github.com/danlock/go-rss-gen/scrape"
+	"github.com/danlock/feedgen/db"
+	"github.com/danlock/feedgen/gen/restapi"
+	"github.com/danlock/feedgen/gen/restapi/operations"
+	"github.com/danlock/feedgen/scrape"
 	loads "github.com/go-openapi/loads"
 
-	"github.com/danlock/go-rss-gen/lib"
+	"github.com/danlock/feedgen/lib"
 	"github.com/jmoiron/sqlx"
 
-	"github.com/danlock/go-rss-gen/lib/logger"
+	"github.com/danlock/feedgen/lib/logger"
 
 	"github.com/joho/godotenv"
 )
@@ -259,7 +259,7 @@ func handleHTTPServer(ctx context.Context, u *url.URL, models apiModels) {
 
 	server := restapi.NewServer(operationsAPI)
 	defer server.Shutdown()
-	server.SetHandler(operationsAPI.Serve(logger.LoggerMiddleware()))
+	server.SetHandler(logger.LoggerMiddleware(operationsAPI.Serve(nil)))
 	port, err := strconv.Atoi(u.Port())
 	if err != nil {
 		port = 80

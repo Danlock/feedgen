@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/danlock/go-rss-gen/lib/logger"
+	"github.com/danlock/feedgen/lib/logger"
 
 	"github.com/go-openapi/runtime"
 )

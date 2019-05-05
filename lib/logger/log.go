@@ -110,26 +110,23 @@ func newReqID() string {
 	return id
 }
 
-func LoggerMiddleware() func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
-			reqID := newReqID()
-			if reqIDHdr := req.Header.Get("X-Request-Id"); reqIDHdr != "" {
-				reqID = reqIDHdr
-			}
-			ctx := WithLogCtxf(req.Context(), "reqID: %s", reqID)
-			req.WithContext(ctx)
-			start := time.Now()
-			reqDump, err := httputil.DumpRequest(req, true)
-			if err != nil {
-				Errf(ctx, "Failed to dump request info, aborting req as it is in an undefined state err:%+v", err)
-				return
-			}
-			Infof(ctx, "starting %s", reqDump)
-			rw.Header().Set("X-Request-Id", reqID)
-			next.ServeHTTP(rw, req)
-			Infof(ctx, "completed %s %s in %s", req.Method, req.RequestURI, time.Since(start).String())
-		})
-
-	}
+func LoggerMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		reqID := newReqID()
+		if reqIDHdr := req.Header.Get("X-Request-Id"); reqIDHdr != "" {
+			reqID = reqIDHdr
+		}
+		ctx := WithLogCtxf(req.Context(), "reqID: %s", reqID)
+		req.WithContext(ctx)
+		start := time.Now()
+		reqDump, err := httputil.DumpRequest(req, true)
+		if err != nil {
+			Errf(ctx, "Failed to dump request info, aborting req as it is in an undefined state err:%+v", err)
+			return
+		}
+		Infof(ctx, "starting %s", reqDump)
+		rw.Header().Set("X-Request-Id", reqID)
+		next.ServeHTTP(rw, req)
+		Infof(ctx, "completed %s %s in %s", req.Method, req.RequestURI, time.Since(start).String())
+	})
 }
