@@ -40,10 +40,34 @@ func (s *FgService) Manga(p operations.FeedgenMangaParams) middleware.Responder 
 		seenTitles[t] = struct{}{}
 		normalizedTitles = append(normalizedTitles, t)
 	}
+	mangaTitles, err := s.mangaStore.FindMangaByTitlesIntoMangaTitlesSlice(ctx, normalizedTitles)
+	if err != nil {
+		logger.Errf(ctx, "Failed to upsert feed err:%+v", err)
+		return lib.NewResponse(ctx, http.StatusBadGateway)
+	}
+	// There could possibly be duplicate titles assigned to different manga, that edge case is not being covered
+	if len(mangaTitles) < len(normalizedTitles) {
+		logger.Warnf(ctx, "Only found %d manga from %d requested titles", len(mangaTitles), len(normalizedTitles))
+		notFoundTitles := make([]string, 0, len(normalizedTitles)-len(mangaTitles))
+		for _, title := range normalizedTitles {
+			found := false
+			for _, foundTitle := range mangaTitles {
+				if title == foundTitle.OriginalTitle {
+					found = true
+					break
+				}
+			}
+			if !found {
+				notFoundTitles = append(notFoundTitles, title)
+			}
+		}
+		return lib.NewResponseWithMsg(ctx, http.StatusNotFound, fmt.Sprint(notFoundTitles))
+	}
+
 	hash, err := s.mangaStore.UpsertFeed(ctx, p.MangaRequestBody)
 	if err != nil {
 		logger.Errf(ctx, "Failed to upsert feed err:%+v", err)
-		return lib.NewResponse(ctx, http.StatusInternalServerError)
+		return lib.NewResponse(ctx, http.StatusBadGateway)
 	}
 	viewMangaBuilder := operations.FeedgenViewMangaURL{Hash: hash}
 	viewMangaURL, err := viewMangaBuilder.WithBasePath(s.hostURI).Build()

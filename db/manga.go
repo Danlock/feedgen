@@ -124,8 +124,9 @@ func (m *mangaStore) UpsertRelease(ctx context.Context, releases []scrape.MangaR
 }
 
 type MangaTitle struct {
-	MUID  int
-	Title string
+	MUID          int
+	OriginalTitle string `db:"title"`
+	DisplayTitle  string `db:"display_title"`
 }
 
 func (m *mangaStore) FindMangaByTitlesIntoMangaTitlesSlice(ctx context.Context, titles []string) ([]MangaTitle, error) {
@@ -137,7 +138,10 @@ func (m *mangaStore) FindMangaByTitlesIntoMangaTitlesSlice(ctx context.Context, 
 }
 func (m *mangaStore) FindMangaByTitles(ctx context.Context, titles []string, outPtr interface{}) error {
 	titleQueryRaw := `
-	SELECT muid,title FROM mangatitle WHERE title IN (?);
+	SELECT muid,title,manga.display_title
+	FROM mangatitle
+	INNER JOIN manga ON manga.muid=mangatitle.muid
+	WHERE title IN (?);
 	`
 	titleQuery, args, err := sqlx.In(titleQueryRaw, titles)
 	if err != nil {

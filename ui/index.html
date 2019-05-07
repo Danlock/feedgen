@@ -1,0 +1,34 @@
+<!doctype html>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+
+  <title>Feedgen</title>
+  <meta name="description" content="Generates RSS, Atom, and JSON feeds for manga">
+</head>
+
+<body>
+  <div>
+    <p>
+      Feedgen generates Atom, RSS and JSON feeds for manga.
+      It parses the MangaUpdates release page every couple of hours to update the generated feed.
+    </p>
+  </div>
+  <form>
+    <label for="manga-feed-gen-titles">Enter manga titles that you would like a feed for:</label>
+    <input id="manga-feed-gen-titles" name="titles">
+    <label for="manga-feed-gen-feed-type">
+      Pick the feed type that you require. If you don't know what this is, use RSS:
+    </label>
+    <select id="manga-feed-gen-feed-type" value="rss">
+      <option selected="selected">rss</option>
+      <option>json</option>
+      <option>atom</option>
+    </select>
+    <button>Submit</button>
+  </form>
+</body>
+
+</html>
