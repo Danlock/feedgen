@@ -138,7 +138,7 @@ func (m *mangaStore) FindMangaByTitlesIntoMangaTitlesSlice(ctx context.Context, 
 }
 func (m *mangaStore) FindMangaByTitles(ctx context.Context, titles []string, outPtr interface{}) error {
 	titleQueryRaw := `
-	SELECT muid,title,manga.display_title
+	SELECT manga.muid,mangatitle.title,manga.display_title
 	FROM mangatitle
 	INNER JOIN manga ON manga.muid=mangatitle.muid
 	WHERE title IN (?);

@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/danlock/feedgen/lib/logger"
-
 	"github.com/go-openapi/runtime"
 )
 

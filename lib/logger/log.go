@@ -11,7 +11,8 @@ import (
 	"os"
 	"strconv"
 	"sync/atomic"
-	"time"
+
+	"github.com/felixge/httpsnoop"
 )
 
 type ctxKeyType uint
@@ -118,15 +119,20 @@ func LoggerMiddleware(next http.Handler) http.Handler {
 		}
 		ctx := WithLogCtxf(req.Context(), "reqID: %s", reqID)
 		req.WithContext(ctx)
-		start := time.Now()
+		// Pass in modified req to DumpRequest to avoid printing all headers
+		savedHeaders := req.Header
+		req.Header = http.Header{}
+		req.Header.Set("User-Agent", savedHeaders.Get("User-Agent"))
+		req.Header.Set("Origin", savedHeaders.Get("Origin"))
 		reqDump, err := httputil.DumpRequest(req, true)
 		if err != nil {
 			Errf(ctx, "Failed to dump request info, aborting req as it is in an undefined state err:%+v", err)
 			return
 		}
+		req.Header = savedHeaders
 		Infof(ctx, "starting %s", reqDump)
 		rw.Header().Set("X-Request-Id", reqID)
-		next.ServeHTTP(rw, req)
-		Infof(ctx, "completed %s %s in %s", req.Method, req.RequestURI, time.Since(start).String())
+		metrics := httpsnoop.CaptureMetrics(next, rw, req)
+		Infof(ctx, "completed %s %s in %s with status %d", req.Method, req.RequestURI, metrics.Duration.String(), metrics.Code)
 	})
 }

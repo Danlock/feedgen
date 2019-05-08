@@ -18,6 +18,10 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/go-openapi/runtime/middleware"
+
+	"github.com/rs/cors"
+
 	"github.com/danlock/feedgen/api"
 
 	openruntime "github.com/go-openapi/runtime"
@@ -259,7 +263,19 @@ func handleHTTPServer(ctx context.Context, u *url.URL, models apiModels) {
 
 	server := restapi.NewServer(operationsAPI)
 	defer server.Shutdown()
-	server.SetHandler(logger.LoggerMiddleware(operationsAPI.Serve(nil)))
+	// Manually setup middleware chain for more control over specific middleware,
+	// Such as not serving the latest, currently broken version of ReDoc.
+	server.SetHandler(
+		logger.LoggerMiddleware(
+			cors.AllowAll().Handler(
+				middleware.Spec("", swaggerSpec.Raw(),
+					middleware.Redoc(
+						middleware.RedocOpts{
+							Path:     "api/docs",
+							RedocURL: "https://rebilly.github.io/ReDoc/releases/v2.0.0-rc.4/redoc.min.js",
+						},
+						operationsAPI.Context().RoutesHandler(nil),
+					)))))
 	port, err := strconv.Atoi(u.Port())
 	if err != nil {
 		port = 80

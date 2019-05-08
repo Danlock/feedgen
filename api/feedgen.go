@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -26,6 +27,7 @@ type FgService struct {
 
 // New returns the feedgen service implementation.
 func NewFeedSrvc(host string, ms db.MangaStorer) *FgService {
+	logger.Infof(context.Background(), host)
 	return &FgService{host, ms}
 }
 func (s *FgService) Manga(p operations.FeedgenMangaParams) middleware.Responder {

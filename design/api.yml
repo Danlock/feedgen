@@ -12,7 +12,7 @@ produces:
 - application/json
 - application/xml
 paths:
-  /feed/manga:
+  /api/feed/manga:
     post:
       summary: Creates a URL containing the current feed for the requested manga titles
       operationId: feedgen#Manga
@@ -37,7 +37,7 @@ paths:
           description: Bad Gateway response.
       schemes:
       - http
-  /feed/manga/{hash}:
+  /api/feed/manga/{hash}:
     get:
       summary: Returns an RSS Feed of the manga titles. Can return atom and json feeds as well.
       operationId: feedgen#viewManga
