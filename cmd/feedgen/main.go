@@ -50,7 +50,7 @@ func helpAndQuit() {
 Usage of %s:
 	poll :	Polls sites for updates with the given frequency in go time.Duration format
 	populate-db:	Scrapes the given range of ids from MangaUpdates
-	api:	serves an API on the URL provided (defaulting to http://localhost:80) with RSS, Atom or JSON Feed endpoints.
+	api:	serves an API on the URL provided (defaulting to http://localhost:8080) with RSS, Atom or JSON Feed endpoints.
 `, os.Args[0])
 	flag.PrintDefaults()
 	os.Exit(0)
@@ -260,6 +260,7 @@ func handleHTTPServer(ctx context.Context, u *url.URL, models apiModels) {
 	fs := api.NewFeedSrvc(u.String(), models.mangaStore)
 	operationsAPI.FeedgenMangaHandler = operations.FeedgenMangaHandlerFunc(fs.Manga)
 	operationsAPI.FeedgenViewMangaHandler = operations.FeedgenViewMangaHandlerFunc(fs.ViewManga)
+	operationsAPI.Init()
 
 	server := restapi.NewServer(operationsAPI)
 	defer server.Shutdown()
@@ -272,7 +273,7 @@ func handleHTTPServer(ctx context.Context, u *url.URL, models apiModels) {
 					middleware.Redoc(
 						middleware.RedocOpts{
 							Path:     "api/docs",
-							RedocURL: "https://rebilly.github.io/ReDoc/releases/v2.0.0-rc.4/redoc.min.js",
+							RedocURL: "https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js",
 						},
 						operationsAPI.Context().RoutesHandler(nil),
 					)))))

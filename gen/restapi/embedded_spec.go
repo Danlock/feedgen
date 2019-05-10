@@ -35,12 +35,13 @@ func init() {
     "title": "Feed Generator"
   },
   "paths": {
-    "/feed/manga": {
+    "/api/feed/manga": {
       "post": {
+        "description": "Creates a URL containing the current feed for the requested manga titles",
         "schemes": [
           "http"
         ],
-        "summary": "Creates a URL containing the current feed for the requested manga titles",
+        "summary": "Create feed from manga titles",
         "operationId": "feedgen#Manga",
         "parameters": [
           {
@@ -74,8 +75,9 @@ func init() {
         }
       }
     },
-    "/feed/manga/{hash}": {
+    "/api/feed/manga/{hash}": {
       "get": {
+        "description": "Returns an RSS Feed of the manga titles. Can return atom and json feeds as well.",
         "produces": [
           "application/xml",
           "application/json"
@@ -83,7 +85,7 @@ func init() {
         "schemes": [
           "http"
         ],
-        "summary": "Returns an RSS Feed of the manga titles. Can return atom and json feeds as well.",
+        "summary": "Get rss/atom/json feed of manga updates",
         "operationId": "feedgen#viewManga",
         "parameters": [
           {
@@ -96,7 +98,8 @@ func init() {
           {
             "enum": [
               "rss",
-              "atom"
+              "atom",
+              "json"
             ],
             "type": "string",
             "default": "rss",
@@ -173,12 +176,13 @@ func init() {
     "title": "Feed Generator"
   },
   "paths": {
-    "/feed/manga": {
+    "/api/feed/manga": {
       "post": {
+        "description": "Creates a URL containing the current feed for the requested manga titles",
         "schemes": [
           "http"
         ],
-        "summary": "Creates a URL containing the current feed for the requested manga titles",
+        "summary": "Create feed from manga titles",
         "operationId": "feedgen#Manga",
         "parameters": [
           {
@@ -212,8 +216,9 @@ func init() {
         }
       }
     },
-    "/feed/manga/{hash}": {
+    "/api/feed/manga/{hash}": {
       "get": {
+        "description": "Returns an RSS Feed of the manga titles. Can return atom and json feeds as well.",
         "produces": [
           "application/xml",
           "application/json"
@@ -221,7 +226,7 @@ func init() {
         "schemes": [
           "http"
         ],
-        "summary": "Returns an RSS Feed of the manga titles. Can return atom and json feeds as well.",
+        "summary": "Get rss/atom/json feed of manga updates",
         "operationId": "feedgen#viewManga",
         "parameters": [
           {
@@ -234,7 +239,8 @@ func init() {
           {
             "enum": [
               "rss",
-              "atom"
+              "atom",
+              "json"
             ],
             "type": "string",
             "default": "rss",

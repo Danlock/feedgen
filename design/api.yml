@@ -14,7 +14,8 @@ produces:
 paths:
   /api/feed/manga:
     post:
-      summary: Creates a URL containing the current feed for the requested manga titles
+      summary: Create feed from manga titles
+      description: Creates a URL containing the current feed for the requested manga titles
       operationId: feedgen#Manga
       parameters:
       - name: MangaRequestBody
@@ -39,7 +40,8 @@ paths:
       - http
   /api/feed/manga/{hash}:
     get:
-      summary: Returns an RSS Feed of the manga titles. Can return atom and json feeds as well.
+      summary: Get rss/atom/json feed of manga updates
+      description: Returns an RSS Feed of the manga titles. Can return atom and json feeds as well.
       operationId: feedgen#viewManga
       produces:
       - application/xml
@@ -59,6 +61,7 @@ paths:
         enum:
         - rss
         - atom
+        - json
       responses:
         "200":
           description: OK response.

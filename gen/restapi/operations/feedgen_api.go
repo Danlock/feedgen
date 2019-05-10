@@ -270,12 +270,12 @@ func (o *FeedgenAPI) initHandlerCache() {
 	if o.handlers["POST"] == nil {
 		o.handlers["POST"] = make(map[string]http.Handler)
 	}
-	o.handlers["POST"]["/feed/manga"] = NewFeedgenManga(o.context, o.FeedgenMangaHandler)
+	o.handlers["POST"]["/api/feed/manga"] = NewFeedgenManga(o.context, o.FeedgenMangaHandler)
 
 	if o.handlers["GET"] == nil {
 		o.handlers["GET"] = make(map[string]http.Handler)
 	}
-	o.handlers["GET"]["/feed/manga/{hash}"] = NewFeedgenViewManga(o.context, o.FeedgenViewMangaHandler)
+	o.handlers["GET"]["/api/feed/manga/{hash}"] = NewFeedgenViewManga(o.context, o.FeedgenViewMangaHandler)
 
 }
 

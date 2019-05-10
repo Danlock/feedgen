@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -27,7 +26,6 @@ type FgService struct {
 
 // New returns the feedgen service implementation.
 func NewFeedSrvc(host string, ms db.MangaStorer) *FgService {
-	logger.Infof(context.Background(), host)
 	return &FgService{host, ms}
 }
 func (s *FgService) Manga(p operations.FeedgenMangaParams) middleware.Responder {
@@ -77,7 +75,7 @@ func (s *FgService) Manga(p operations.FeedgenMangaParams) middleware.Responder 
 		logger.Errf(ctx, "Failed to create view manga url err:%+v", err)
 		return lib.NewResponse(ctx, http.StatusInternalServerError)
 	}
-	return operations.NewFeedgenMangaOK().WithPayload(viewMangaURL.String())
+	return operations.NewFeedgenMangaOK().WithPayload(strings.TrimPrefix(viewMangaURL.String(), "./"))
 }
 
 func (s *FgService) ViewManga(p operations.FeedgenViewMangaParams) middleware.Responder {

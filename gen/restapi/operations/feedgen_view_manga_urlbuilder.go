@@ -42,7 +42,7 @@ func (o *FeedgenViewMangaURL) SetBasePath(bp string) {
 func (o *FeedgenViewMangaURL) Build() (*url.URL, error) {
 	var _result url.URL
 
-	var _path = "/feed/manga/{hash}"
+	var _path = "/api/feed/manga/{hash}"
 
 	hash := o.Hash
 	if hash != "" {

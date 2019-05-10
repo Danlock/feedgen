@@ -105,7 +105,7 @@ func (o *FeedgenViewMangaParams) bindFeedType(rawData []string, hasKey bool, for
 // validateFeedType carries on validations for parameter FeedType
 func (o *FeedgenViewMangaParams) validateFeedType(formats strfmt.Registry) error {
 
-	if err := validate.Enum("feedType", "query", *o.FeedType, []interface{}{"rss", "atom"}); err != nil {
+	if err := validate.Enum("feedType", "query", *o.FeedType, []interface{}{"rss", "atom", "json"}); err != nil {
 		return err
 	}
 

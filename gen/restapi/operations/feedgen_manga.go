@@ -29,7 +29,9 @@ func NewFeedgenManga(ctx *middleware.Context, handler FeedgenMangaHandler) *Feed
 	return &FeedgenManga{Context: ctx, Handler: handler}
 }
 
-/*FeedgenManga swagger:route POST /feed/manga feedgenManga
+/*FeedgenManga swagger:route POST /api/feed/manga feedgenManga
+
+Create feed from manga titles
 
 Creates a URL containing the current feed for the requested manga titles
 

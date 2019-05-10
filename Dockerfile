@@ -13,7 +13,6 @@ RUN download_url=$(curl -s "https://api.github.com/repos/go-swagger/go-swagger/r
 WORKDIR /go/src/github.com/danlock/feedgen
 COPY . .
 
-RUN go get -d -v ./...
 RUN make -B gen
 RUN make version
 RUN make build

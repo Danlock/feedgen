@@ -6,12 +6,17 @@ LONGBUILDTAG = Build Time:$(BUILDTIME)
 LDFLAGS = -X 'main.buildTag=$(SHORTBUILDTAG)' -X 'main.buildInfo=$(LONGBUILDTAG)'
 .PHONY: build
 
+depend:
+	@GO111MODULE=on go get -u
+	@GO111MODULE=on go mod vendor
+	@GO111MODULE=on go get tidy
+
 gen: design/*
 	@rm -rf gen/*
 	@swagger generate server -t gen -A feedgen -f design/api.yml --exclude-main
 
 build:
-	go build -race -ldflags "$(LDFLAGS)" -o ./bin/feedgen ./cmd/feedgen
+	GO111MODULE=on go build -mod=vendor -race -ldflags "$(LDFLAGS)" -o ./bin/feedgen ./cmd/feedgen
 
 docker-build:
 	@docker build -t feedgen .
