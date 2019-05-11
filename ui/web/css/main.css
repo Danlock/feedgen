@@ -1,0 +1,18 @@
+
+html {
+  background: url(../img/kaibabg.png) no-repeat center fixed;
+  background-size: cover;
+  color: white;
+}
+
+body {
+  opacity: 0.65;
+  background-color: rgba(0, 0 , 0, 0.65);
+  color: white;
+}
+
+.center-me {
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
+}

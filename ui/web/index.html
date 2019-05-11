@@ -1,0 +1,80 @@
+<!doctype html>
+
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" type="text/css" href="css/main.css" />
+  <title>Feedgen</title>
+  <meta name="description" content="Generates RSS, Atom, and JSON feeds for manga">
+  <script>
+    function makeMangaFeed() {
+      const maxFeedTitles = 2048
+      let titles = document.getElementById("manga-feed-gen-titles").value;
+      if (titles === "") {
+        document.getElementById("results").innerHTML = "Please enter your desired manga titles";
+        return;
+      }
+
+      titles = titles.split(",")
+      if (titles.length > maxFeedTitles) {
+        document.getElementById("results").innerHTML = "Each feed can only hold a maximum of " + maxFeedTitles + " titles";
+        return;
+      }
+
+      const Http = new XMLHttpRequest();
+      Http.open("POST", '/api/feed/manga');
+      Http.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+      Http.send(JSON.stringify({
+        "titles": titles,
+      }));
+
+      Http.onreadystatechange = (e) => {
+        if (Http.status < 200 && Http.status > 299) {
+          document.getElementById("results").innerHTML =
+            "There was an error processing that request, try again later."
+          return;
+        } else if (Http.status === 404) {
+          document.getElementById("results").innerHTML =
+            `Could not find ${Http.responseText}. Make sure they match by searching <a href="https://www.mangaupdates.com">mangaupdates</a>`;
+          return;
+        }
+        const feedURL = Http.responseText + "?feedType=" + document.getElementById("manga-feed-gen-feed-type").value;
+        document.getElementById("results").innerHTML =
+          `Your feed is hosted at <a href="${feedURL}">here</a>`;
+      }
+    }
+  </script>
+</head>
+
+<body>
+  <div>
+    <p class="center-me">
+      Feedgen generates RSS, Atom and JSON feeds for manga. </br>
+      It scrapes the MangaUpdates release page every couple of hours. </br>
+      View the source code <a href="https://github.com/Danlock/feedgen">here</a> </br>
+    </p>
+  </div>
+  <div>
+    <p class="center-me">
+      <label for="manga-feed-gen-titles">Enter a comma seperated list of manga titles:</label>
+      <input id="manga-feed-gen-titles" name="titles">
+    </p>
+    <p class="center-me">
+      <label for="manga-feed-gen-feed-type">
+        Pick your desired feed type:
+      </label>
+      <select id="manga-feed-gen-feed-type" value="rss">
+        <option selected="selected">rss</option>
+        <option>json</option>
+        <option>atom</option>
+      </select>
+    </p>
+    <div class="center-me"> <button id="manga-feed-gen-button" onclick="makeMangaFeed()">Make Feed</button> </div>
+  </div>
+  <p id="results">
+
+  </p>
+</body>
+
+</html>
