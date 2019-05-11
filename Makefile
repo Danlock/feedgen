@@ -15,7 +15,7 @@ gen: design/*
 	@rm -rf gen/*
 	@swagger generate server -t gen -A feedgen -f design/api.yml --exclude-main
 
-build:
+build: gen
 	GO111MODULE=on go build -mod=vendor -race -ldflags "$(LDFLAGS)" -o ./bin/feedgen ./cmd/feedgen
 
 docker-build:

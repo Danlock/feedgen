@@ -43,4 +43,6 @@ services:
       options:
         max-size: "5m"
         max-file: "100"
+    volumes:
+      - ../ui/web/:${FG_UI}
     command: api

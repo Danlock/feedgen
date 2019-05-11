@@ -5,15 +5,12 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/danlock/feedgen/db"
 	"github.com/danlock/feedgen/gen/restapi/operations"
 	"github.com/danlock/feedgen/lib"
-
-	"github.com/go-openapi/runtime/middleware"
-
 	"github.com/danlock/feedgen/lib/logger"
 	"github.com/danlock/feedgen/scrape"
-
-	"github.com/danlock/feedgen/db"
+	"github.com/go-openapi/runtime/middleware"
 	"github.com/gorilla/feeds"
 )
 
@@ -70,7 +67,7 @@ func (s *FgService) Manga(p operations.FeedgenMangaParams) middleware.Responder 
 		return lib.NewResponse(ctx, http.StatusBadGateway)
 	}
 	viewMangaBuilder := operations.FeedgenViewMangaURL{Hash: hash}
-	viewMangaURL, err := viewMangaBuilder.WithBasePath(s.hostURI).Build()
+	viewMangaURL, err := viewMangaBuilder.Build()
 	if err != nil {
 		logger.Errf(ctx, "Failed to create view manga url err:%+v", err)
 		return lib.NewResponse(ctx, http.StatusInternalServerError)

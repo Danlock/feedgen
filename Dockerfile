@@ -11,13 +11,15 @@ RUN download_url=$(curl -s "https://api.github.com/repos/go-swagger/go-swagger/r
   chmod +x /usr/local/bin/swagger
 
 WORKDIR /go/src/github.com/danlock/feedgen
-COPY . .
-
+COPY ./design ./design
+COPY ./gen ./gen
 RUN make -B gen
+COPY . .
 RUN make version
 RUN make build
 
 FROM debian:stretch
 COPY --from=BASE /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=BASE /go/src/github.com/danlock/feedgen/bin /usr/local/bin
+COPY --from=BASE /go/src/github.com/danlock/feedgen/ui /usr/local/etc/feedgen/ui
 ENTRYPOINT ["/usr/local/bin/feedgen"]

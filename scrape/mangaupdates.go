@@ -182,7 +182,6 @@ func QueryMUSeriesIds(ctx context.Context, ids []int) ([]MangaInfo, error) {
 				return
 			}
 		}
-		logger.Dbgf(ctx, "Finished sending ids to idChan")
 	}()
 	// Create worker goroutines that do work on each id and end on chan close
 	infoChan := make(chan MangaInfo)
@@ -245,10 +244,12 @@ func PollMUForReleases(ctx context.Context, freq time.Duration) <-chan []MangaRe
 	out := make(chan []MangaRelease)
 	timer := time.NewTicker(freq)
 	pollFunc := func() {
+		start := time.Now()
 		releases, err := QueryLast2DaysOfMUReleases()
 		if err != nil {
 			logger.Errf(ctx, "Failed to get releases from MangaUpdates! %+v", err)
 		}
+		logger.Dbgf(ctx, "Scraped %d mangaupdates releases in %s", len(releases), time.Since(start).String())
 		select {
 		case <-ctx.Done():
 			return

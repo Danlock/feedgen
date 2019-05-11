@@ -199,6 +199,7 @@ func handlePoll(ctx context.Context, mangaStore db.MangaStorer, freq time.Durati
 			// Scrape the info page for each new manga found and place them in db
 			newRelLen := len(newReleases)
 			if newRelLen > 0 {
+				start := time.Now()
 				logger.Infof(ctx, "Found %d new titles, scraping their pages...", newRelLen)
 				muids := make([]int, 0, newRelLen)
 				for _, r := range newReleases {
@@ -209,6 +210,7 @@ func handlePoll(ctx context.Context, mangaStore db.MangaStorer, freq time.Durati
 				} else if err := mangaStore.UpsertManga(ctx, manga); err != nil {
 					logger.Errf(ctx, "Failed to upsert manga for new releases err: %+v", err)
 				}
+				logger.Dbgf(ctx, "Finished scraping and upserting %d new titles in %s", newRelLen, time.Since(start).String())
 			}
 			// Finally upsert releases in DB in case there are duplicates
 			if err := mangaStore.UpsertRelease(ctx, releases); err != nil {
@@ -269,14 +271,23 @@ func handleHTTPServer(ctx context.Context, u *url.URL, models apiModels) {
 	server.SetHandler(
 		logger.LoggerMiddleware(
 			cors.AllowAll().Handler(
-				middleware.Spec("", swaggerSpec.Raw(),
+				middleware.Spec(
+					"",
+					swaggerSpec.Raw(),
 					middleware.Redoc(
 						middleware.RedocOpts{
 							Path:     "api/docs",
 							RedocURL: "https://cdn.jsdelivr.net/npm/redoc@next/bundles/redoc.standalone.js",
 						},
-						operationsAPI.Context().RoutesHandler(nil),
-					)))))
+						api.ServeUI(
+							lib.GetEnvOrWarn("FG_UI"),
+							operationsAPI.Context().RoutesHandler(nil),
+						),
+					),
+				),
+			),
+		),
+	)
 	port, err := strconv.Atoi(u.Port())
 	if err != nil {
 		port = 80
