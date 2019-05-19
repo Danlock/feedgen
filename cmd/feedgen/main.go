@@ -199,18 +199,20 @@ func handlePoll(ctx context.Context, mangaStore db.MangaStorer, freq time.Durati
 			// Scrape the info page for each new manga found and place them in db
 			newRelLen := len(newReleases)
 			if newRelLen > 0 {
-				start := time.Now()
 				logger.Infof(ctx, "Found %d new titles, scraping their pages...", newRelLen)
+				start := time.Now()
 				muids := make([]int, 0, newRelLen)
 				for _, r := range newReleases {
 					muids = append(muids, r.MUID)
 				}
-				if manga, err := scrape.QueryMUSeriesIds(ctx, muids); err != nil {
+				manga, err := scrape.QueryMUSeriesIds(ctx, muids)
+				if err != nil {
 					logger.Errf(ctx, "Failed to query new manga release pages err:%+v", err)
-				} else if err := mangaStore.UpsertManga(ctx, manga); err != nil {
+				}
+				logger.Dbgf(ctx, "Finished scraping %d new titles in %s", newRelLen, time.Since(start).String())
+				if err := mangaStore.UpsertManga(ctx, manga); err != nil {
 					logger.Errf(ctx, "Failed to upsert manga for new releases err: %+v", err)
 				}
-				logger.Dbgf(ctx, "Finished scraping and upserting %d new titles in %s", newRelLen, time.Since(start).String())
 			}
 			// Finally upsert releases in DB in case there are duplicates
 			if err := mangaStore.UpsertRelease(ctx, releases); err != nil {
