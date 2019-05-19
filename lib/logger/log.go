@@ -133,6 +133,6 @@ func LoggerMiddleware(next http.Handler) http.Handler {
 		Infof(ctx, "starting %s", reqDump)
 		rw.Header().Set("X-Request-Id", reqID)
 		metrics := httpsnoop.CaptureMetrics(next, rw, req)
-		Infof(ctx, "completed %s %s in %s with status %d", req.Method, req.RequestURI, metrics.Duration.String(), metrics.Code)
+		Infof(ctx, "completed %s %s in %s with status %d and wrote %d bytes", req.Method, req.RequestURI, metrics.Duration.String(), metrics.Code, metrics.Written)
 	})
 }
