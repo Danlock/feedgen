@@ -16,7 +16,7 @@ gen: design/*
 	@swagger generate server -t gen -A feedgen -f design/api.yml --exclude-main
 
 build: gen
-	GO111MODULE=on go build -mod=vendor -race -ldflags "$(LDFLAGS)" -o ./bin/feedgen ./cmd/feedgen
+	CGO_ENABLED=0 GO111MODULE=on go build -mod=vendor -ldflags "$(LDFLAGS)" -o ./bin/feedgen ./cmd/feedgen
 
 docker-build:
 	@docker build -t feedgen .
@@ -24,7 +24,10 @@ docker-build:
 
 deploy: docker-build
 	@scp /tmp/feedgen root@feedgen.xyz:/tmp/feedgen
-	@ssh root@feedgen.xyz "cd ~/feedgen && make restart"
+	@ssh root@feedgen.xyz "cd /usr/local/src/feedgen && make restart"
+
+update-prod:
+	@ssh root@feedgen.xyz "cd /usr/local/src/feedgen && git pull"
 
 restart:
 	@docker load -i /tmp/feedgen

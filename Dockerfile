@@ -18,7 +18,7 @@ COPY . .
 RUN make version
 RUN make build
 
-FROM debian:stretch
+FROM scratch
 COPY --from=BASE /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=BASE /go/src/github.com/danlock/feedgen/bin /usr/local/bin
 COPY --from=BASE /go/src/github.com/danlock/feedgen/ui /usr/local/etc/feedgen/ui

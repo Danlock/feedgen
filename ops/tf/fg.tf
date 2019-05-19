@@ -16,8 +16,9 @@ resource "scaleway_server" "fg" {
 }
 
 resource "scaleway_security_group" "http" {
-  name        = "http"
-  description = "allow HTTP and HTTPS traffic"
+  name                   = "http"
+  description            = "allow HTTP and HTTPS traffic"
+  inbound_default_policy = "drop"
 }
 
 resource "scaleway_security_group_rule" "http_accept" {
@@ -38,4 +39,14 @@ resource "scaleway_security_group_rule" "https_accept" {
   ip_range  = "0.0.0.0/0"
   protocol  = "TCP"
   port      = 443
+}
+
+resource "scaleway_security_group_rule" "ssh_accept" {
+  security_group = "${scaleway_security_group.http.id}"
+
+  action    = "accept"
+  direction = "inbound"
+  ip_range  = "${var.ssh_ip}"
+  protocol  = "TCP"
+  port      = 22
 }

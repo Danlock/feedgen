@@ -9,6 +9,7 @@ services:
     volumes:
       - dbvol:/cockroach/cockroach-data
       - ./init-user-db.sh:/etc/cockroach/conf/init-user-db.sh
+      - ./schema.sql:/etc/cockroach/conf/schema.sql
     ports:
       - 26257:26257
       - 28080:8080
@@ -37,7 +38,7 @@ services:
     restart: unless-stopped
     ports:
       - 18081:18080
-      - 8080:8080
+      - 80:8080
     logging:
       driver: "json-file"
       options:

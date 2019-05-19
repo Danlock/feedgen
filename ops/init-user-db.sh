@@ -12,3 +12,5 @@ echo "Initializing CRDB";
 	CREATE DATABASE IF NOT EXISTS $COCKROACH_DATABASE;
 	GRANT CREATE, SELECT, DROP, INSERT, DELETE, UPDATE ON DATABASE $COCKROACH_DATABASE TO $COCKROACH_USER;
 ";
+echo "Importing schema"
+/cockroach/cockroach sql --insecure --user=root < /etc/cockroach/conf/schema.sql;

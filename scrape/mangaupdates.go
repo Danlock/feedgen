@@ -192,11 +192,13 @@ func QueryMUSeriesIds(ctx context.Context, ids []int) ([]MangaInfo, error) {
 		go func() {
 			defer wg.Done()
 			for id := range idChan {
+				start := time.Now()
 				info, err := GetAndParseMUMangaPage(ctx, id)
 				if err != nil && err != ErrInvalidMUID {
 					logger.Errf(ctx, "Failure on %d err:%+v", id, err)
 					continue
 				}
+				logger.Dbgf(ctx, "Scraped manga %d in %s", id, time.Since(start).String())
 				infoChan <- info
 			}
 		}()
