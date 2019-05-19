@@ -20,9 +20,15 @@ build: gen
 
 docker-build:
 	@docker build -t feedgen .
-
-docker-deploy: docker-build
 	@docker save -o /tmp/feedgen feedgen
+
+deploy: docker-build
+	@scp /tmp/feedgen root@feedgen.xyz:/tmp/feedgen
+	@ssh root@feedgen.xyz "cd ~/feedgen && make restart"
+
+restart:
+	@docker load -i /tmp/feedgen
+	@cd ops && docker-compose up -d --force-recreate api poll
 
 version: 
 	@echo $(SHORTBUILDTAG)
