@@ -3,6 +3,7 @@ package scrape
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"runtime"
@@ -94,6 +95,7 @@ func parseMUDailyReleases(table *html.Node) ([]MangaRelease, error) {
 }
 
 const ErrInvalidMUID lib.SentinelError = "Invalid MUID"
+const maxFailedRequests = 10
 
 func GetAndParseMUMangaPage(ctx context.Context, id int) (m MangaInfo, err error) {
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf(muInfoURLFormat, id), nil)
@@ -103,9 +105,25 @@ func GetAndParseMUMangaPage(ctx context.Context, id int) (m MangaInfo, err error
 	req = req.WithContext(ctx)
 	// MangaUpdates doesn't seem to reliably advertise Keep-Alive connection status and Go doesnt handle that very well, so close every request
 	req.Close = true
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return m, errors.Wrap(err, "Failed sending request")
+	// Retry requests up to 10 times, waiting a random amount of time between retries up to 30 seconds
+	failedRequests := 0
+	var resp *http.Response
+	for {
+		resp, err = http.DefaultClient.Do(req)
+		if err == nil {
+			break
+		}
+		if failedRequests < maxFailedRequests {
+			failedRequests++
+			logger.Errf(ctx, "Failed sending request for id %d %d times. Retrying...", id, failedRequests)
+		} else if failedRequests >= maxFailedRequests {
+			return m, errors.Wrap(err, "Failed sending request")
+		}
+		select {
+		case <-time.After(time.Duration(failedRequests) * time.Duration(rand.Intn(3000)) * time.Millisecond):
+		case <-ctx.Done():
+			return m, ctx.Err()
+		}
 	}
 	root, err := htmlquery.Parse(resp.Body)
 	if err != nil {
