@@ -16,9 +16,13 @@ resource "scaleway_server" "fg" {
 }
 
 resource "scaleway_security_group" "http" {
-  name                   = "http"
-  description            = "allow HTTP and HTTPS traffic"
-  inbound_default_policy = "drop"
+  name                    = "http"
+  description             = "allow HTTP and HTTPS traffic"
+  enable_default_security = true
+  inbound_default_policy  = "drop"
+
+  # For some reason this setting doesn't always stick, if apt update stalls this may have to be set manually
+  stateful = true
 }
 
 resource "scaleway_security_group_rule" "http_accept" {
