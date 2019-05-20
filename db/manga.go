@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -242,6 +243,7 @@ type MangaFeed struct {
 }
 
 func (m *mangaStore) UpsertFeed(ctx context.Context, p *models.FeedgenMangaRequestBody) (string, error) {
+	sort.Strings(p.Titles)
 	h := sha256.New()
 	for _, t := range p.Titles {
 		h.Write([]byte(t))

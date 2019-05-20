@@ -60,7 +60,7 @@ func (s *FgService) Manga(p operations.FeedgenMangaParams) middleware.Responder 
 		}
 		return lib.NewResponseWithMsg(ctx, http.StatusNotFound, fmt.Sprint(notFoundTitles))
 	}
-
+	p.MangaRequestBody.Titles = normalizedTitles
 	hash, err := s.mangaStore.UpsertFeed(ctx, p.MangaRequestBody)
 	if err != nil {
 		logger.Errf(ctx, "Failed to upsert feed err:%+v", err)
