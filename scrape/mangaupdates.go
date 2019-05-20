@@ -113,12 +113,11 @@ func GetAndParseMUMangaPage(ctx context.Context, id int) (m MangaInfo, err error
 		if err == nil {
 			break
 		}
-		if failedRequests < maxFailedRequests {
-			failedRequests++
-			logger.Errf(ctx, "Failed sending request for id %d %d times. Retrying...", id, failedRequests)
-		} else if failedRequests >= maxFailedRequests {
+		if failedRequests >= maxFailedRequests {
 			return m, errors.Wrap(err, "Failed sending request")
 		}
+		failedRequests++
+		logger.Errf(ctx, "Failed sending request for id %d %d times. Retrying...", id, failedRequests)
 		select {
 		case <-time.After(time.Duration(failedRequests) * time.Duration(rand.Intn(3000)) * time.Millisecond):
 		case <-ctx.Done():

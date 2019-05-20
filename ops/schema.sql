@@ -33,7 +33,6 @@ CREATE TABLE public.mangatitle (
 CREATE TABLE public.mangafeed (
 	hash varchar NOT NULL,
 	titles varchar[] NOT NULL,
-	"type" varchar NOT NULL,
 	created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	CONSTRAINT mangafeed_pk PRIMARY KEY (hash)
 );
