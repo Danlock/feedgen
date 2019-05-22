@@ -139,7 +139,11 @@ func main() {
 			logger.Errf(ctx, "populate-db takes in two args, the start and end range of the MangaUpdate manga ids to scrape from.")
 			os.Exit(1)
 		}
-		if handleDBPopulation(ctx, mangaStore, start, end) != nil {
+		muids := make([]int, 0, end-start)
+		for i := start; i <= end; i++ {
+			muids = append(muids, i)
+		}
+		if scrapeAndSaveManga(ctx, mangaStore, muids) != nil {
 			os.Exit(1)
 		}
 	case "api":
@@ -158,26 +162,27 @@ func main() {
 	}
 }
 
-func handleDBPopulation(ctx context.Context, mangaStore db.MangaStorer, start, end int) error {
-	before := time.Now()
-	manga, err := scrape.QueryMUSeriesRange(ctx, start, end)
-	if err != nil {
-		logger.Errf(ctx, "Failed to query Mangaupdates err: %+v", err)
-		return err
-	}
-	logger.Infof(ctx, "Took %s to get %d manga between %d and %d", time.Since(before).String(), len(manga), start, end)
-	select {
-	case <-ctx.Done():
-		logger.Infof(ctx, "Context closed, shutting down populate-db...")
-		return ctx.Err()
-	default:
-	}
-	if len(manga) == 0 {
-		return nil
-	}
-	if err := mangaStore.UpsertManga(ctx, manga); err != nil {
-		logger.Errf(ctx, "Failed to upserting manga: err %+v", err)
-		return err
+func scrapeAndSaveManga(ctx context.Context, mangaStore db.MangaStorer, muids []int) error {
+	for _, i := range muids {
+		select {
+		case <-ctx.Done():
+			logger.Infof(ctx, "Context closed, shutting down populate-db...")
+			return ctx.Err()
+		default:
+		}
+		before := time.Now()
+		manga, err := scrape.GetAndParseMUMangaPage(ctx, i)
+		if err == scrape.ErrInvalidMUID {
+			continue
+		} else if err != nil {
+			logger.Errf(ctx, "Failed to query Mangaupdates for muid %d err: %+v", i, err)
+			return err
+		}
+		logger.Dbgf(ctx, "Scraped manga %d in %s", i, time.Since(before).String())
+		if err := mangaStore.UpsertManga(ctx, []scrape.MangaInfo{manga}); err != nil {
+			logger.Errf(ctx, "Failed to upserting manga: err %+v", err)
+			return err
+		}
 	}
 	return nil
 }
@@ -205,14 +210,10 @@ func handlePoll(ctx context.Context, mangaStore db.MangaStorer, freq time.Durati
 				for _, r := range newReleases {
 					muids = append(muids, r.MUID)
 				}
-				manga, err := scrape.QueryMUSeriesIds(ctx, muids)
-				if err != nil {
-					logger.Errf(ctx, "Failed to query new manga release pages err:%+v", err)
+				if err := scrapeAndSaveManga(ctx, mangaStore, muids); err != nil {
+					logger.Errf(ctx, "Failed to scrape and save manga for new releases with ids %+v err: %+v", muids, err)
 				}
-				logger.Dbgf(ctx, "Finished scraping %d new titles in %s", newRelLen, time.Since(start).String())
-				if err := mangaStore.UpsertManga(ctx, manga); err != nil {
-					logger.Errf(ctx, "Failed to upsert manga for new releases err: %+v", err)
-				}
+				logger.Dbgf(ctx, "Finished scraping and saving %d new titles in %s", newRelLen, time.Since(start).String())
 			}
 			// Finally upsert releases in DB in case there are duplicates
 			if err := mangaStore.UpsertRelease(ctx, releases); err != nil {

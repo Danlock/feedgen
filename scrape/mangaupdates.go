@@ -6,10 +6,8 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
-	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/antchfx/htmlquery"
@@ -173,66 +171,6 @@ func GetAndParseMUMangaPage(ctx context.Context, id int) (m MangaInfo, err error
 		m.LatestRelease = strings.Split(releaseText, " by ")[0]
 	}
 	return m, nil
-}
-
-func QueryMUSeriesRange(ctx context.Context, start, end int) ([]MangaInfo, error) {
-	ids := make([]int, end-start)
-	val := start
-	for i := range ids {
-		ids[i] = val
-		val++
-	}
-	return QueryMUSeriesIds(ctx, ids)
-}
-
-func QueryMUSeriesIds(ctx context.Context, ids []int) ([]MangaInfo, error) {
-	// Create sender goroutine that sends down ids and closes when done
-	idChan := make(chan int)
-	go func() {
-		defer close(idChan)
-		for _, i := range ids {
-			time.Sleep(500 * time.Millisecond)
-			select {
-			case idChan <- i:
-			case <-ctx.Done():
-				logger.Infof(ctx, "Stopping QueryAllMUSeries due to %+v", ctx.Err())
-				return
-			}
-		}
-	}()
-	// Create worker goroutines that do work on each id and end on chan close
-	infoChan := make(chan MangaInfo)
-	var maxGoroutines = runtime.NumCPU()
-	wg := &sync.WaitGroup{}
-	wg.Add(maxGoroutines)
-	for i := 0; i < maxGoroutines; i++ {
-		go func() {
-			defer wg.Done()
-			for id := range idChan {
-				start := time.Now()
-				info, err := GetAndParseMUMangaPage(ctx, id)
-				if err != nil && err != ErrInvalidMUID {
-					logger.Errf(ctx, "Failure on %d err:%+v", id, err)
-					continue
-				}
-				logger.Dbgf(ctx, "Scraped manga %d in %s", id, time.Since(start).String())
-				infoChan <- info
-			}
-		}()
-	}
-	// Create closer goroutine that waits for workers to complete then closes infoChan
-	go func() {
-		wg.Wait()
-		close(infoChan)
-	}()
-	// Append info from the chan until its closed
-	infos := make([]MangaInfo, 0)
-	for info := range infoChan {
-		if info.MUID > 0 {
-			infos = append(infos, info)
-		}
-	}
-	return infos, nil
 }
 
 func QueryLast2DaysOfMUReleases() ([]MangaRelease, error) {

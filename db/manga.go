@@ -17,7 +17,6 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
-	_ "github.com/lib/pq"
 )
 
 type MangaStorer interface {
@@ -69,14 +68,10 @@ DO NOTHING;`
 
 	mangaQuery = fmt.Sprintf(mangaQuery, mangaValues)
 	mangaQuery = m.db.Rebind(mangaQuery)
-	if res, err := m.db.ExecContext(ctx, mangaQuery, muidReleaseArray...); err != nil {
+
+	if _, err := m.db.ExecContext(ctx, mangaQuery, muidReleaseArray...); err != nil {
 		logger.Errf(ctx, "Failed upserting manga with %s\n with error %s", mangaQuery, ErrDetails(err))
 		return errors.WithStack(err)
-	} else {
-		num, _ := res.RowsAffected()
-		if num > 0 {
-			logger.Infof(ctx, "Upserted %d rows of manga", num)
-		}
 	}
 	titleQuery = fmt.Sprintf(titleQuery, titleValues)
 	titleQuery = m.db.Rebind(titleQuery)
