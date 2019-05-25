@@ -18,26 +18,19 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/go-openapi/runtime/middleware"
-
-	"github.com/rs/cors"
-
 	"github.com/danlock/feedgen/api"
-
-	openruntime "github.com/go-openapi/runtime"
-
 	"github.com/danlock/feedgen/db"
 	"github.com/danlock/feedgen/gen/restapi"
 	"github.com/danlock/feedgen/gen/restapi/operations"
+	"github.com/danlock/feedgen/lib"
+	"github.com/danlock/feedgen/lib/logger"
 	"github.com/danlock/feedgen/scrape"
 	loads "github.com/go-openapi/loads"
-
-	"github.com/danlock/feedgen/lib"
+	openruntime "github.com/go-openapi/runtime"
+	"github.com/go-openapi/runtime/middleware"
 	"github.com/jmoiron/sqlx"
-
-	"github.com/danlock/feedgen/lib/logger"
-
 	"github.com/joho/godotenv"
+	"github.com/rs/cors"
 )
 
 var (

@@ -54,3 +54,13 @@ resource "scaleway_security_group_rule" "ssh_accept" {
   protocol  = "TCP"
   port      = 22
 }
+
+resource "scaleway_security_group_rule" "crdb_web_accept" {
+  security_group = "${scaleway_security_group.http.id}"
+
+  action    = "accept"
+  direction = "inbound"
+  ip_range  = "${var.ssh_ip}"
+  protocol  = "TCP"
+  port      = 28080
+}

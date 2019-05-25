@@ -4,29 +4,27 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/binary"
 	"fmt"
 	"sort"
 	"strings"
 	"time"
 
-	"github.com/danlock/feedgen/gen/models"
-
 	"github.com/danlock/feedgen/lib/logger"
 	"github.com/danlock/feedgen/scrape"
-	"github.com/pkg/errors"
-
 	"github.com/jmoiron/sqlx"
 	"github.com/lib/pq"
+	"github.com/pkg/errors"
 )
 
 type MangaStorer interface {
 	FindMangaByTitlesIntoMangaTitlesSlice(context.Context, []string) ([]MangaTitle, error)
 	FindMangaByTitles(context.Context, []string, interface{}) error
-	FindReleasesByTitles(context.Context, []string, interface{}) error
+	FindReleasesForFeed(context.Context, MangaFeed, interface{}) error
 	UpsertManga(context.Context, []scrape.MangaInfo) error
 	UpsertRelease(context.Context, []scrape.MangaRelease) error
 	FilterOutReleasesWithoutMangaInDB(context.Context, []scrape.MangaRelease) ([]scrape.MangaRelease, error)
-	UpsertFeed(context.Context, *models.FeedgenMangaRequestBody) (string, error)
+	UpsertFeed(context.Context, []int) (string, error)
 	GetFeed(context.Context, string, interface{}) error
 }
 
@@ -151,7 +149,7 @@ func (m *mangaStore) FindMangaByTitles(ctx context.Context, titles []string, out
 	return nil
 }
 
-type DBMangaRelease struct {
+type MangaRelease struct {
 	MUID        int
 	Title       string `db:"display_title"`
 	Release     string
@@ -159,28 +157,19 @@ type DBMangaRelease struct {
 	CreatedAt   time.Time `db:"created_at"`
 }
 
-func (m *mangaStore) FindReleasesByTitles(ctx context.Context, titles []string, outPtr interface{}) error {
-	releaseQueryRaw := `
+func (m *mangaStore) FindReleasesForFeed(ctx context.Context, mf MangaFeed, outPtr interface{}) error {
+	releaseQuery := `
 	SELECT mangarelease.muid, mangarelease.release, mangarelease.translators, mangarelease.created_at, manga.display_title
 		FROM mangarelease
-		INNER JOIN mangatitle ON mangatitle.muid=mangarelease.muid
-		INNER JOIN manga ON mangatitle.muid=manga.muid
+		INNER JOIN manga ON mangarelease.muid=manga.muid
 		INNER JOIN (
 			SELECT muid, max(mangarelease.created_at) most_recent
 					FROM mangarelease
 					GROUP BY muid
 		) mr ON manga.muid = mr.muid AND mangarelease.created_at = mr.most_recent
-	WHERE mangatitle.title IN (?);`
-	titleVals := make([]interface{}, 0, len(titles))
-	for _, t := range titles {
-		titleVals = append(titleVals, strings.TrimSpace(strings.ToLower(t)))
-	}
-	releaseQuery, args, err := sqlx.In(releaseQueryRaw, titleVals)
-	if err != nil {
-		return errors.Wrap(err, "Failed creating IN query")
-	}
+	WHERE mangarelease.muid = ANY ?;`
 	releaseQuery = m.db.Rebind(releaseQuery)
-	if err := m.db.SelectContext(ctx, outPtr, releaseQuery, args...); err != nil {
+	if err := m.db.SelectContext(ctx, outPtr, releaseQuery, mf.MUIDs); err != nil {
 		logger.Errf(ctx, "Failed to find manga releases by titles with %s err: %s", releaseQuery, ErrDetails(err))
 		return errors.WithStack(err)
 	}
@@ -233,39 +222,35 @@ func (m *mangaStore) FilterOutReleasesWithoutMangaInDB(ctx context.Context, rele
 type MangaFeed struct {
 	Hash      string
 	Type      string
-	Titles    pq.StringArray
-	CreatedAt time.Time `db:"created_at"`
+	MUIDs     pq.Int64Array `db:"muids"`
+	CreatedAt time.Time     `db:"created_at"`
 }
 
-func (m *mangaStore) UpsertFeed(ctx context.Context, p *models.FeedgenMangaRequestBody) (string, error) {
-	sort.Strings(p.Titles)
+func (m *mangaStore) UpsertFeed(ctx context.Context, muids []int) (string, error) {
+	sort.Ints(muids)
 	h := sha256.New()
-	for _, t := range p.Titles {
-		h.Write([]byte(t))
+	for _, m := range muids {
+		binary.Write(h, binary.LittleEndian, m)
 	}
-	mf := MangaFeed{
-		Hash:      base64.RawURLEncoding.EncodeToString(h.Sum(nil)),
-		Titles:    p.Titles,
-		CreatedAt: time.Now(),
-	}
+	hash := base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 	query := `
-	INSERT INTO mangafeed (hash, titles)
+	INSERT INTO mangafeed (hash, muids)
 	VALUES	(?,?)
 	ON CONFLICT (hash)
 	DO NOTHING;
 `
 	query = m.db.Rebind(query)
-	_, err := m.db.ExecContext(ctx, query, mf.Hash, mf.Titles)
+	_, err := m.db.ExecContext(ctx, query, hash, pq.Array(muids))
 	if err != nil {
 		logger.Errf(ctx, "Failed to upsert feeds with %s err: %s", query, ErrDetails(err))
 		return "", errors.WithStack(err)
 	}
-	return mf.Hash, nil
+	return hash, nil
 }
 
 func (m *mangaStore) GetFeed(ctx context.Context, hash string, outPtr interface{}) error {
 	query := `
-	SELECT titles,created_at FROM mangafeed WHERE hash=?;
+	SELECT muids,created_at FROM mangafeed WHERE hash=?;
 	`
 	query = m.db.Rebind(query)
 	if err := m.db.GetContext(ctx, outPtr, query, hash); err != nil {

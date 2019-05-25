@@ -205,6 +205,7 @@ func PollMUForReleases(ctx context.Context, freq time.Duration) <-chan []MangaRe
 		releases, err := QueryLast2DaysOfMUReleases()
 		if err != nil {
 			logger.Errf(ctx, "Failed to get releases from MangaUpdates! %+v", err)
+			return
 		}
 		logger.Dbgf(ctx, "Scraped %d mangaupdates releases in %s", len(releases), time.Since(start).String())
 		select {

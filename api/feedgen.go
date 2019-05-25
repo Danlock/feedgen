@@ -60,8 +60,11 @@ func (s *FgService) Manga(p operations.FeedgenMangaParams) middleware.Responder 
 		}
 		return lib.NewResponseWithMsg(ctx, http.StatusNotFound, fmt.Sprint(notFoundTitles))
 	}
-	p.MangaRequestBody.Titles = normalizedTitles
-	hash, err := s.mangaStore.UpsertFeed(ctx, p.MangaRequestBody)
+	muids := make([]int, 0, len(mangaTitles))
+	for _, t := range mangaTitles {
+		muids = append(muids, t.MUID)
+	}
+	hash, err := s.mangaStore.UpsertFeed(ctx, muids)
 	if err != nil {
 		logger.Errf(ctx, "Failed to upsert feed err:%+v", err)
 		return lib.NewResponse(ctx, http.StatusBadGateway)
@@ -83,8 +86,8 @@ func (s *FgService) ViewManga(p operations.FeedgenViewMangaParams) middleware.Re
 		logger.Errf(ctx, "Failed to get feed releases err:%+v", err)
 		return lib.NewResponse(ctx, http.StatusBadGateway)
 	}
-	releases := make([]db.DBMangaRelease, 0, len(feed.Titles))
-	if err := s.mangaStore.FindReleasesByTitles(ctx, feed.Titles, &releases); err != nil {
+	releases := make([]db.MangaRelease, 0, len(feed.MUIDs))
+	if err := s.mangaStore.FindReleasesForFeed(ctx, feed, &releases); err != nil {
 		logger.Errf(ctx, "Failed to find releases for those titles err:%+v", err)
 		return lib.NewResponse(ctx, http.StatusBadGateway)
 	}
