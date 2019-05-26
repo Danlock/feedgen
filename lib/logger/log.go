@@ -10,6 +10,7 @@ import (
 	"net/http/httputil"
 	"os"
 	"strconv"
+	"strings"
 	"sync/atomic"
 
 	"github.com/felixge/httpsnoop"
@@ -119,6 +120,12 @@ func LoggerMiddleware(next http.Handler) http.Handler {
 		}
 		ctx := WithLogCtxf(req.Context(), "reqID: %s", reqID)
 		req.WithContext(ctx)
+		rw.Header().Set("X-Request-Id", reqID)
+		// Skip logging for healthcheck requests
+		if strings.Contains(req.UserAgent(), "UptimeRobot") {
+			next.ServeHTTP(rw, req)
+			return
+		}
 		// Pass in modified req to DumpRequest to avoid printing all headers
 		savedHeaders := req.Header
 		req.Header = http.Header{}
@@ -131,7 +138,6 @@ func LoggerMiddleware(next http.Handler) http.Handler {
 		}
 		req.Header = savedHeaders
 		Infof(ctx, "starting %s", reqDump)
-		rw.Header().Set("X-Request-Id", reqID)
 		metrics := httpsnoop.CaptureMetrics(next, rw, req)
 		Infof(ctx, "completed %s %s in %s with status %d and wrote %d bytes", req.Method, req.RequestURI, metrics.Duration.String(), metrics.Code, metrics.Written)
 	})
