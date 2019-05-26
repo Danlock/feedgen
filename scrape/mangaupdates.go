@@ -83,7 +83,7 @@ func parseMUDailyReleases(table *html.Node) ([]MangaRelease, error) {
 						currentMangaRelease.Translators = htmlquery.InnerText(releaseLinks)
 					}
 				case strings.Contains(attr.Val, "col-2"):
-					currentMangaRelease.Release = htmlquery.InnerText(release)
+					currentMangaRelease.Release = strings.TrimSpace(htmlquery.InnerText(release))
 				}
 			}
 		}
