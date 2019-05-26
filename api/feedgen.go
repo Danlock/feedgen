@@ -58,7 +58,7 @@ func (s *FgService) Manga(p operations.FeedgenMangaParams) middleware.Responder 
 				notFoundTitles = append(notFoundTitles, title)
 			}
 		}
-		return lib.NewResponseWithMsg(ctx, http.StatusNotFound, fmt.Sprint(notFoundTitles))
+		return lib.NewResponse(ctx, http.StatusNotFound).WithMsg(fmt.Sprint(notFoundTitles))
 	}
 	muids := make([]int, 0, len(mangaTitles))
 	for _, t := range mangaTitles {
@@ -128,10 +128,13 @@ func (s *FgService) ViewManga(p operations.FeedgenViewMangaParams) middleware.Re
 	var result string
 	switch *p.FeedType {
 	case "atom":
+		p.HTTPRequest.Header.Set("Accept", "application/xml")
 		result, err = mangaFeed.ToAtom()
 	case "rss":
+		p.HTTPRequest.Header.Set("Accept", "application/xml")
 		result, err = mangaFeed.ToRss()
 	case "json":
+		p.HTTPRequest.Header.Set("Accept", "application/json")
 		result, err = mangaFeed.ToJSON()
 	default:
 		logger.Errf(ctx, "Received unsupported field type %s", *p.FeedType)
