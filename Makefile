@@ -33,5 +33,8 @@ restart:
 	@docker load -i /tmp/feedgen
 	@cd ops && docker-compose up -d --force-recreate api poll
 
+logs:
+	@ssh root@feedgen.xyz "cd /usr/local/src/feedgen/ops && docker-compose logs -f api poll"
+
 version: 
 	@echo $(SHORTBUILDTAG)
