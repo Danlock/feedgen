@@ -97,6 +97,7 @@
           return;
         }
         mangaDisplay.innerHTML = "";
+        mangaTitles = [];
         const feedURL = Http.responseText + "?feedType=" + feedTypeInput.value;
         results.innerHTML = `Your feed is hosted at <a href="${feedURL}">here</a>`;
       }
