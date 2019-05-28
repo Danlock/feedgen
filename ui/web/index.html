@@ -24,7 +24,6 @@
       <label for="manga-titles">Enter manga:</label>
       <input id="manga-titles">
       <button id="manga-title-add-button" onclick="addMangaTitle()">+</button>
-      <button id="manga-title-remove-button" onclick="removeMangaTitle()">-</button>
     </p>
     <p class="center-me">
       <label for="feed-type">
@@ -38,6 +37,7 @@
     </p>
     <div class="center-me"> <button id="manga-feed-gen-button" onclick="makeMangaFeed()">Make Feed</button> </div>
   </div>
+  <p class="center-me">Current Feed: (click to remove)</p>
   <p id="manga-display" class="center-me"></p>
   <p id="results" class="center-me"></p>
 
@@ -51,7 +51,7 @@
     const mangaTitles = []
 
     mangaInput.addEventListener("keydown", (e) => {
-      if (e.charCode !== ENTER_CODE) {
+      if (e.keyCode !== ENTER_CODE) {
         return;
       }
       addMangaTitle();
@@ -64,13 +64,22 @@
         return;
       }
       mangaTitles.push(title);
-      mangaDisplay.innerHTML = mangaTitles;
+      displayManga(mangaTitles);
       mangaInput.value = "";
     }
 
-    function removeMangaTitle() {
-      mangaTitles.pop();
-      mangaDisplay.innerHTML = mangaTitles;
+    function removeMangaTitle(e) {
+      idx = mangaTitles.findIndex((t) => { t === e.innerHTML });
+      console.log(` ${idx} ${mangaTitles} ${e}`)
+      mangaTitles.splice(idx, 1);
+      displayManga(mangaTitles);
+    }
+
+    function displayManga(mangaTitles) {
+      mangaDisplay.innerHTML = ""
+      for (const m of mangaTitles) {
+        mangaDisplay.innerHTML += `<button onclick="removeMangaTitle(this)">${m}</button>`
+      }
     }
 
     function makeMangaFeed() {
@@ -96,8 +105,8 @@
             `Could not find ${Http.responseText}. The manga must be available at <a href="https://www.mangaupdates.com">mangaupdates</a>`;
           return;
         }
-        mangaDisplay.innerHTML = "";
         mangaTitles = [];
+        displayManga(mangaTitles);
         const feedURL = Http.responseText + "?feedType=" + feedTypeInput.value;
         results.innerHTML = `Your feed is hosted at <a href="${feedURL}">here</a>`;
       }
