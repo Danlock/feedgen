@@ -4,9 +4,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/binary"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -230,7 +230,7 @@ func (m *mangaStore) UpsertFeed(ctx context.Context, muids []int) (string, error
 	sort.Ints(muids)
 	h := sha256.New()
 	for _, m := range muids {
-		binary.Write(h, binary.LittleEndian, m)
+		h.Write([]byte(strconv.Itoa(m)))
 	}
 	hash := base64.RawURLEncoding.EncodeToString(h.Sum(nil))
 	query := `

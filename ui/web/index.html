@@ -86,7 +86,9 @@
     }
 
     function makeMangaFeed() {
-      addMangaTitle();
+      if (mangaInput.value !== "") {
+        addMangaTitle();
+      }
       if (mangaTitles.length === 0) {
         results.textContent = "Please enter at least one manga."
         return;
@@ -104,14 +106,14 @@
           results.textContent = "There was an error processing that request, try again later."
           return;
         } else if (Http.status === 404) {
-          results.textContent =
+          results.innerHTML =
             `Could not find ${Http.responseText}. The manga must be available at <a href="https://www.mangaupdates.com">mangaupdates</a>`;
           return;
         }
         mangaTitles = [];
         displayManga(mangaTitles);
         const feedURL = Http.responseText + "?feedType=" + feedTypeInput.value;
-        results.textContent = `Your feed is hosted at <a href="${feedURL}">here</a>`;
+        results.innerHTML = `Your feed is hosted at <a href="${feedURL}">here</a>`;
       }
     }
   </script>
