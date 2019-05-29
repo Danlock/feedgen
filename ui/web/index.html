@@ -60,23 +60,23 @@
     function addMangaTitle() {
       const title = mangaInput.value;
       if (title === "") {
-        results.innerHTML = "Please enter your desired manga title";
+        results.textContent = "Please enter your desired manga title";
         return;
       }
-      mangaTitles.push(title);
+      mangaTitles.push(title.trim());
       displayManga(mangaTitles);
       mangaInput.value = "";
     }
 
     function removeMangaTitle(e) {
       mangaTitles = mangaTitles.filter(m => {
-        return m !== e.target.innerText;
+        return m !== e.target.textContent;
       });
       displayManga(mangaTitles);
     }
 
     function displayManga(mangaTitles) {
-      mangaDisplay.innerHTML = ""
+      mangaDisplay.textContent = ""
       for (const m of mangaTitles) {
         const btn = document.createElement("button");
         btn.innerText = m;
@@ -88,11 +88,11 @@
     function makeMangaFeed() {
       addMangaTitle();
       if (mangaTitles.length === 0) {
-        results.innerHTML = "Please enter at least one manga."
+        results.textContent = "Please enter at least one manga."
         return;
       }
       if (mangaTitles.length > MAX_MANGA) {
-        results.innerHTML = "Each feed can only hold a maximum of " + MAX_MANGA + " titles.";
+        results.textContent = "Each feed can only hold a maximum of " + MAX_MANGA + " titles.";
         return;
       }
       const Http = new XMLHttpRequest();
@@ -101,17 +101,17 @@
       Http.send(JSON.stringify({ "titles": mangaTitles }));
       Http.onreadystatechange = e => {
         if (Http.status < 200 && Http.status > 299) {
-          results.innerHTML = "There was an error processing that request, try again later."
+          results.textContent = "There was an error processing that request, try again later."
           return;
         } else if (Http.status === 404) {
-          results.innerHTML =
+          results.textContent =
             `Could not find ${Http.responseText}. The manga must be available at <a href="https://www.mangaupdates.com">mangaupdates</a>`;
           return;
         }
         mangaTitles = [];
         displayManga(mangaTitles);
         const feedURL = Http.responseText + "?feedType=" + feedTypeInput.value;
-        results.innerHTML = `Your feed is hosted at <a href="${feedURL}">here</a>`;
+        results.textContent = `Your feed is hosted at <a href="${feedURL}">here</a>`;
       }
     }
   </script>
