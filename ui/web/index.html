@@ -48,7 +48,7 @@
     const feedTypeInput = document.getElementById("feed-type");
     const results = document.getElementById("results");
     const mangaDisplay = document.getElementById("manga-display");
-    const mangaTitles = []
+    let mangaTitles = []
 
     mangaInput.addEventListener("keydown", (e) => {
       if (e.keyCode !== ENTER_CODE) {
@@ -69,16 +69,19 @@
     }
 
     function removeMangaTitle(e) {
-      idx = mangaTitles.findIndex((t) => { t === e.innerHTML });
-      console.log(` ${idx} ${mangaTitles} ${e}`)
-      mangaTitles.splice(idx, 1);
+      mangaTitles = mangaTitles.filter(m => {
+        return m !== e.target.innerText;
+      });
       displayManga(mangaTitles);
     }
 
     function displayManga(mangaTitles) {
       mangaDisplay.innerHTML = ""
       for (const m of mangaTitles) {
-        mangaDisplay.innerHTML += `<button onclick="removeMangaTitle(this)">${m}</button>`
+        const btn = document.createElement("button");
+        btn.innerText = m;
+        btn.onclick = removeMangaTitle;
+        mangaDisplay.appendChild(btn);
       }
     }
 
@@ -96,7 +99,7 @@
       Http.open("POST", '/api/feed/manga');
       Http.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
       Http.send(JSON.stringify({ "titles": mangaTitles }));
-      Http.onreadystatechange = (e) => {
+      Http.onreadystatechange = e => {
         if (Http.status < 200 && Http.status > 299) {
           results.innerHTML = "There was an error processing that request, try again later."
           return;
