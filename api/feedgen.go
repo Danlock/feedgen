@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/danlock/feedgen/db"
@@ -17,12 +18,12 @@ import (
 // feedgen service example implementation.
 // The example methods log the requests and return zero values.
 type FgService struct {
-	hostURI    string
+	hostURI    *url.URL
 	mangaStore db.MangaStorer
 }
 
 // New returns the feedgen service implementation.
-func NewFeedSrvc(host string, ms db.MangaStorer) *FgService {
+func NewFeedSrvc(host *url.URL, ms db.MangaStorer) *FgService {
 	return &FgService{host, ms}
 }
 func (s *FgService) Manga(p operations.FeedgenMangaParams) middleware.Responder {
@@ -70,12 +71,12 @@ func (s *FgService) Manga(p operations.FeedgenMangaParams) middleware.Responder 
 		return lib.NewResponse(ctx, http.StatusBadGateway)
 	}
 	viewMangaBuilder := operations.FeedgenViewMangaURL{Hash: hash}
-	viewMangaURL, err := viewMangaBuilder.Build()
+	viewMangaURL, err := viewMangaBuilder.BuildFull(s.hostURI.Scheme, s.hostURI.Host)
 	if err != nil {
 		logger.Errf(ctx, "Failed to create view manga url err:%+v", err)
 		return lib.NewResponse(ctx, http.StatusInternalServerError)
 	}
-	return operations.NewFeedgenMangaOK().WithPayload(strings.TrimPrefix(viewMangaURL.String(), "./"))
+	return operations.NewFeedgenMangaOK().WithPayload(viewMangaURL.String())
 }
 
 func (s *FgService) ViewManga(p operations.FeedgenViewMangaParams) middleware.Responder {
@@ -95,7 +96,7 @@ func (s *FgService) ViewManga(p operations.FeedgenViewMangaParams) middleware.Re
 		logger.Dbgf(ctx, "Found no releases for feed %+v, returning empty feed", feed)
 	}
 	viewMangaBuilder := operations.FeedgenViewMangaURL{Hash: p.Hash, FeedType: p.FeedType}
-	viewMangaURL, err := viewMangaBuilder.WithBasePath(s.hostURI).Build()
+	viewMangaURL, err := viewMangaBuilder.BuildFull(s.hostURI.Scheme, s.hostURI.Host)
 	if err != nil {
 		logger.Errf(ctx, "Failed to create view manga url err:%+v", err)
 		return lib.NewResponse(ctx, http.StatusInternalServerError)
@@ -106,20 +107,20 @@ func (s *FgService) ViewManga(p operations.FeedgenViewMangaParams) middleware.Re
 		Created:     feed.CreatedAt,
 		Link: &feeds.Link{
 			Href: viewMangaURL.String(),
-			Rel:  viewMangaURL.String(),
+			Rel:  "self",
 		},
 	}
+
 	for _, r := range releases {
 		l := &feeds.Link{
 			Href: scrape.GetMUPageURL(r.MUID),
-			Rel:  scrape.GetMUPageURL(r.MUID),
+			Rel:  "self",
 		}
 		mangaFeed.Add(&feeds.Item{
-			Id:      fmt.Sprintf("%d.%s", r.MUID, r.Release),
+			Id:      fmt.Sprintf("%s&release=%s", scrape.GetMUPageURL(r.MUID), r.Release),
 			Title:   fmt.Sprintf("%s %s", r.Title, r.Release),
 			Content: fmt.Sprintf("%s %s released and translated by %s", r.Title, r.Release, r.Translators),
 			Created: r.CreatedAt,
-			Author:  &feeds.Author{Name: r.Translators},
 			Link:    l,
 			Source:  l,
 		})

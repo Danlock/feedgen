@@ -255,7 +255,7 @@ func handleHTTPServer(ctx context.Context, u *url.URL, models apiModels) {
 		enc.SetEscapeHTML(false)
 		return lazyEncoder(enc, writer, data)
 	})
-	fs := api.NewFeedSrvc(u.String(), models.mangaStore)
+	fs := api.NewFeedSrvc(u, models.mangaStore)
 	operationsAPI.FeedgenMangaHandler = operations.FeedgenMangaHandlerFunc(fs.Manga)
 	operationsAPI.FeedgenViewMangaHandler = operations.FeedgenViewMangaHandlerFunc(fs.ViewManga)
 	operationsAPI.Init()

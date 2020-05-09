@@ -46,4 +46,4 @@ services:
         max-file: "100"
     volumes:
       - ../ui/web/:${FG_UI}
-    command: api
+    command: api http://feedgen.xyz

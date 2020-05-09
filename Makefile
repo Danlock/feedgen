@@ -26,7 +26,7 @@ deploy: docker-build
 	@scp /tmp/feedgen root@feedgen.xyz:/tmp/feedgen
 	@ssh root@feedgen.xyz "cd /usr/local/src/feedgen && make restart"
 
-update-prod:
+deploy-env:
 	@ssh root@feedgen.xyz "cd /usr/local/src/feedgen && git pull"
 
 restart:
