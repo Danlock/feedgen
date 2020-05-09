@@ -16,10 +16,18 @@
       Hit the Make Feed button after entering all the manga you want to be part of your release feed. <br />
       The link can be used in QuiteRSS, Mozilla Thunderbird or any reader that accepts one of the feed types. <br />
       Release info is sourced from MangaUpdates periodically throughout the day.</br>
+      Note that the given manga title must match exactly with the title on MangaUpdates.</br>
       View the source code <a href="https://github.com/Danlock/feedgen">here</a> </br>
     </p>
+    </br>
   </div>
   <div>
+    <p class="center-me">
+      <label for="manga-feed-url">Enter previous feed URL:</label>
+      <input id="manga-feed-url">
+      <button id="manga-feed-url-button" onclick="viewMangaFeed()">View</button>
+    </p>
+    <p class="center-me">OR</p>
     <p class="center-me">
       <label for="manga-titles">Enter manga:</label>
       <input id="manga-titles">
@@ -29,10 +37,10 @@
       <label for="feed-type">
         Feed type:
       </label>
-      <select id="feed-type" value="rss">
-        <option selected="selected">rss</option>
+      <select id="feed-type" value="atom">
+        <option selected="selected">atom</option>
         <option>json</option>
-        <option>atom</option>
+        <option>rss</option>
       </select>
     </p>
     <div class="center-me"> <button id="manga-feed-gen-button" onclick="makeMangaFeed()">Make Feed</button> </div>
@@ -42,19 +50,26 @@
   <p id="results" class="center-me"></p>
 
   <script>
-    const ENTER_CODE = 13
-    const MAX_MANGA = 2048
+    const ENTER_CODE = 13;
+    const MAX_MANGA = 2048;
+    const feedInput = document.getElementById("manga-feed-url");
     const mangaInput = document.getElementById("manga-titles");
     const feedTypeInput = document.getElementById("feed-type");
     const results = document.getElementById("results");
     const mangaDisplay = document.getElementById("manga-display");
-    let mangaTitles = []
+    let mangaTitles = [];
 
     mangaInput.addEventListener("keydown", (e) => {
       if (e.keyCode !== ENTER_CODE) {
         return;
       }
       addMangaTitle();
+    })
+    feedInput.addEventListener("keydown", (e) => {
+      if (e.keyCode !== ENTER_CODE) {
+        return;
+      }
+      viewMangaFeed();
     })
 
     function addMangaTitle() {
@@ -102,18 +117,62 @@
       Http.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
       Http.send(JSON.stringify({ "titles": mangaTitles }));
       Http.onreadystatechange = e => {
-        if (Http.status < 200 && Http.status > 299) {
-          results.textContent = "There was an error processing that request, try again later."
-          return;
-        } else if (Http.status === 404) {
+        if (Http.readyState !== XMLHttpRequest.DONE) {
+          return
+        }
+        if (Http.status === 404) {
           results.innerHTML =
             `Could not find ${Http.responseText}. The manga must be available at <a href="https://www.mangaupdates.com">mangaupdates</a>`;
+          return;
+        } else if (Http.status < 200 || Http.status > 299) {
+          results.textContent = "There was an error processing that request, try again later.";
           return;
         }
         mangaTitles = [];
         displayManga(mangaTitles);
         const feedURL = Http.responseText + "?feedType=" + feedTypeInput.value;
         results.innerHTML = `Your feed is hosted at <a href="${feedURL}">here</a>`;
+      }
+
+    }
+
+    function viewMangaFeed() {
+      let feed = feedInput.value;
+      if (feed === "") {
+        results.textContent = "Please enter the complete URL that was returned that last time you used this page";
+        return;
+      }
+      lastSlash = feed.lastIndexOf("/");
+      queryStart = feed.indexOf("?");
+      if (lastSlash === -1) {
+        results.textContent = "Could not parse the given feed URL.";
+        return;
+      }
+      if (queryStart === -1) {
+        queryStart = feed.length;
+      }
+      feed = feed.substring(lastSlash + 1, queryStart);
+
+      const Http = new XMLHttpRequest();
+      Http.responseType = "json";
+      Http.open("GET", `/api/feed/manga/${feed}/titles`);
+      Http.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+      Http.send();
+      Http.onreadystatechange = e => {
+        if (Http.readyState !== XMLHttpRequest.DONE) {
+          return
+        }
+        if (Http.status === 404) {
+          results.innerHTML =
+            `Could not find feed ${feed}. The feed must be one that was returned from this pages Make Feed button.`;
+          return;
+        } else if (Http.status < 200 || Http.status > 299) {
+          results.textContent = "There was an error processing that request, try again later.";
+          return;
+        }
+
+        mangaTitles = Http.response.titles;
+        displayManga(mangaTitles);
       }
     }
   </script>

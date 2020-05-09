@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/base64"
 	"fmt"
 	"sort"
@@ -26,6 +27,7 @@ type MangaStorer interface {
 	FilterOutReleasesWithoutMangaInDB(context.Context, []scrape.MangaRelease) ([]scrape.MangaRelease, error)
 	UpsertFeed(context.Context, []int) (string, error)
 	GetFeed(context.Context, string, interface{}) error
+	FindMangaByMUIDs(ctx context.Context, muids pq.Int64Array, outPtr interface{}) error
 }
 
 type mangaStore struct {
@@ -148,6 +150,22 @@ func (m *mangaStore) FindMangaByTitles(ctx context.Context, titles []string, out
 	}
 	return nil
 }
+func (m *mangaStore) FindMangaByMUIDs(ctx context.Context, muids pq.Int64Array, outPtr interface{}) error {
+	if len(muids) == 0 {
+		return sql.ErrNoRows
+	}
+	query := `
+	SELECT muid,display_title
+	FROM manga
+	WHERE muid = ANY ?;
+	`
+	query = m.db.Rebind(query)
+	if err := m.db.SelectContext(ctx, outPtr, query, muids); err != nil {
+		logger.Errf(ctx, "Failed getting manga with %s err:%+v", query, ErrDetails(err))
+		return errors.WithStack(err)
+	}
+	return nil
+}
 
 type MangaRelease struct {
 	MUID        int
@@ -255,6 +273,7 @@ func (m *mangaStore) GetFeed(ctx context.Context, hash string, outPtr interface{
 	query = m.db.Rebind(query)
 	if err := m.db.GetContext(ctx, outPtr, query, hash); err != nil {
 		logger.Errf(ctx, "Failed to get feed with %s err %s", query, ErrDetails(err))
+		return err
 	}
 	return nil
 }

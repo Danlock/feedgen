@@ -23,7 +23,7 @@ func NewFeedgenViewMangaParams() FeedgenViewMangaParams {
 	var (
 		// initialize parameters with default values
 
-		feedTypeDefault = string("rss")
+		feedTypeDefault = string("atom")
 	)
 
 	return FeedgenViewMangaParams{
@@ -42,7 +42,7 @@ type FeedgenViewMangaParams struct {
 
 	/*RSS, Atom, or JSON Feed
 	  In: query
-	  Default: "rss"
+	  Default: "atom"
 	*/
 	FeedType *string
 	/*Identifier of previously created manga feed

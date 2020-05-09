@@ -36,12 +36,38 @@ paths:
           description: Internal Server Error response.
         "502":
           description: Bad Gateway response.
-      schemes:
-      - http
+  /api/feed/manga/{hash}/titles/:
+    get:
+      summary: Get manga titles inside feed
+      operationId: feedgen#viewMangaTitles
+      produces:
+        - application/json
+      parameters:
+      - name: hash
+        in: path
+        description: Identifier of previously created manga feed
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK response.
+          schema:
+            type: object
+            properties:
+              titles:
+                type: array
+                items:
+                  type: string
+        "404":
+          description: Not Found response.
+        "500":
+          description: Internal Server Error response.
+        "502":
+          description: Bad Gateway response.
   /api/feed/manga/{hash}:
     get:
-      summary: Get rss/atom/json feed of manga updates
-      description: Returns an RSS Feed of the manga titles. Can return atom and json feeds as well.
+      summary: Get feed of manga updates
+      description: Returns an RSS/Atom/JSON Feed of the manga titles.
       operationId: feedgen#viewManga
       produces:
       - application/xml
@@ -57,7 +83,7 @@ paths:
         description: RSS, Atom, or JSON Feed
         required: false
         type: string
-        default: rss
+        default: atom
         enum:
         - rss
         - atom
@@ -73,8 +99,6 @@ paths:
           description: Internal Server Error response.
         "502":
           description: Bad Gateway response.
-      schemes:
-      - http
 definitions:
   FeedgenMangaRequestBody:
     title: FeedgenMangaRequestBody
@@ -84,14 +108,15 @@ definitions:
         type: array
         items:
           type: string
-          example: Quas impedit ratione esse.
+          example: Oyasumi Punpun
         description: List of manga titles to subscribe to
         example:
-        - Ut labore quis atque nobis debitis.
+        - Oyasumi Punpun
+        - Berserk
         minItems: 1
         maxItems: 2048
     example:
       titles:
-      - Culpa atque et.
+      - Oyasumi Punpun
     required:
     - titles

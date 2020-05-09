@@ -258,6 +258,7 @@ func handleHTTPServer(ctx context.Context, u *url.URL, models apiModels) {
 	fs := api.NewFeedSrvc(u, models.mangaStore)
 	operationsAPI.FeedgenMangaHandler = operations.FeedgenMangaHandlerFunc(fs.Manga)
 	operationsAPI.FeedgenViewMangaHandler = operations.FeedgenViewMangaHandlerFunc(fs.ViewManga)
+	operationsAPI.FeedgenViewMangaTitlesHandler = operations.FeedgenViewMangaTitlesHandlerFunc(fs.ViewMangaTitles)
 	operationsAPI.Init()
 
 	server := restapi.NewServer(operationsAPI)

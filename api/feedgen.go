@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -83,7 +84,9 @@ func (s *FgService) ViewManga(p operations.FeedgenViewMangaParams) middleware.Re
 	ctx := p.HTTPRequest.Context()
 
 	feed := db.MangaFeed{}
-	if err := s.mangaStore.GetFeed(ctx, p.Hash, &feed); err != nil {
+	if err := s.mangaStore.GetFeed(ctx, p.Hash, &feed); err == sql.ErrNoRows {
+		return lib.NewResponse(ctx, http.StatusNotFound)
+	} else if err != nil {
 		logger.Errf(ctx, "Failed to get feed releases err:%+v", err)
 		return lib.NewResponse(ctx, http.StatusBadGateway)
 	}
@@ -156,4 +159,26 @@ func (s *FgService) ViewManga(p operations.FeedgenViewMangaParams) middleware.Re
 	}
 
 	return operations.NewFeedgenViewMangaOK().WithPayload(result)
+}
+
+func (s *FgService) ViewMangaTitles(p operations.FeedgenViewMangaTitlesParams) middleware.Responder {
+	ctx := p.HTTPRequest.Context()
+
+	feed := db.MangaFeed{}
+	if err := s.mangaStore.GetFeed(ctx, p.Hash, &feed); err == sql.ErrNoRows {
+		return lib.NewResponse(ctx, http.StatusNotFound)
+	} else if err != nil {
+		logger.Errf(ctx, "Failed to get feed muids err:%+v", err)
+		return lib.NewResponse(ctx, http.StatusBadGateway)
+	}
+	manga := make([]db.MangaTitle, 0)
+	if err := s.mangaStore.FindMangaByMUIDs(ctx, feed.MUIDs, &manga); err != nil {
+		logger.Errf(ctx, "Failed to get manga titles err:%+v", err)
+		return lib.NewResponse(ctx, http.StatusBadGateway)
+	}
+	mangaTitles := make([]string, len(manga))
+	for i := range manga {
+		mangaTitles[i] = manga[i].DisplayTitle
+	}
+	return operations.NewFeedgenViewMangaTitlesOK().WithPayload(&operations.FeedgenViewMangaTitlesOKBody{Titles: mangaTitles})
 }

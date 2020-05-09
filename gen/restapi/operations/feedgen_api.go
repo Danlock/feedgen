@@ -45,6 +45,9 @@ func NewFeedgenAPI(spec *loads.Document) *FeedgenAPI {
 		FeedgenViewMangaHandler: FeedgenViewMangaHandlerFunc(func(params FeedgenViewMangaParams) middleware.Responder {
 			return middleware.NotImplemented("operation FeedgenViewManga has not yet been implemented")
 		}),
+		FeedgenViewMangaTitlesHandler: FeedgenViewMangaTitlesHandlerFunc(func(params FeedgenViewMangaTitlesParams) middleware.Responder {
+			return middleware.NotImplemented("operation FeedgenViewMangaTitles has not yet been implemented")
+		}),
 	}
 }
 
@@ -84,6 +87,8 @@ type FeedgenAPI struct {
 	FeedgenMangaHandler FeedgenMangaHandler
 	// FeedgenViewMangaHandler sets the operation handler for the feedgen view manga operation
 	FeedgenViewMangaHandler FeedgenViewMangaHandler
+	// FeedgenViewMangaTitlesHandler sets the operation handler for the feedgen view manga titles operation
+	FeedgenViewMangaTitlesHandler FeedgenViewMangaTitlesHandler
 
 	// ServeError is called when an error is received, there is a default handler
 	// but you can set your own with this
@@ -161,6 +166,10 @@ func (o *FeedgenAPI) Validate() error {
 
 	if o.FeedgenViewMangaHandler == nil {
 		unregistered = append(unregistered, "FeedgenViewMangaHandler")
+	}
+
+	if o.FeedgenViewMangaTitlesHandler == nil {
+		unregistered = append(unregistered, "FeedgenViewMangaTitlesHandler")
 	}
 
 	if len(unregistered) > 0 {
@@ -276,6 +285,11 @@ func (o *FeedgenAPI) initHandlerCache() {
 		o.handlers["GET"] = make(map[string]http.Handler)
 	}
 	o.handlers["GET"]["/api/feed/manga/{hash}"] = NewFeedgenViewManga(o.context, o.FeedgenViewMangaHandler)
+
+	if o.handlers["GET"] == nil {
+		o.handlers["GET"] = make(map[string]http.Handler)
+	}
+	o.handlers["GET"]["/api/feed/manga/{hash}/titles"] = NewFeedgenViewMangaTitles(o.context, o.FeedgenViewMangaTitlesHandler)
 
 }
 

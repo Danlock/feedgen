@@ -31,9 +31,9 @@ func NewFeedgenViewManga(ctx *middleware.Context, handler FeedgenViewMangaHandle
 
 /*FeedgenViewManga swagger:route GET /api/feed/manga/{hash} feedgenViewManga
 
-Get rss/atom/json feed of manga updates
+Get feed of manga updates
 
-Returns an RSS Feed of the manga titles. Can return atom and json feeds as well.
+Returns an RSS/Atom/JSON Feed of the manga titles.
 
 */
 type FeedgenViewManga struct {

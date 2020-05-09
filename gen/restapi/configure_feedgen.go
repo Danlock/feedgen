@@ -47,6 +47,11 @@ func configureAPI(api *operations.FeedgenAPI) http.Handler {
 			return middleware.NotImplemented("operation .FeedgenViewManga has not yet been implemented")
 		})
 	}
+	if api.FeedgenViewMangaTitlesHandler == nil {
+		api.FeedgenViewMangaTitlesHandler = operations.FeedgenViewMangaTitlesHandlerFunc(func(params operations.FeedgenViewMangaTitlesParams) middleware.Responder {
+			return middleware.NotImplemented("operation .FeedgenViewMangaTitles has not yet been implemented")
+		})
+	}
 
 	api.ServerShutdown = func() {}
 
