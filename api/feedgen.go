@@ -116,14 +116,23 @@ func (s *FgService) ViewManga(p operations.FeedgenViewMangaParams) middleware.Re
 			Href: scrape.GetMUPageURL(r.MUID),
 			Rel:  "self",
 		}
-		mangaFeed.Add(&feeds.Item{
-			Id:      fmt.Sprintf("%s&release=%s", scrape.GetMUPageURL(r.MUID), r.Release),
-			Title:   fmt.Sprintf("%s %s", r.Title, r.Release),
-			Content: fmt.Sprintf("%s %s released and translated by %s", r.Title, r.Release, r.Translators),
-			Created: r.CreatedAt,
-			Link:    l,
-			Source:  l,
-		})
+
+		it := &feeds.Item{
+			Id:          fmt.Sprintf("%s&release=%s", scrape.GetMUPageURL(r.MUID), r.Release),
+			Title:       fmt.Sprintf("%s %s", r.Title, r.Release),
+			Content:     fmt.Sprintf("%s %s released and translated by %s", r.Title, r.Release, r.Translators),
+			Description: fmt.Sprintf("%s %s released and translated by %s", r.Title, r.Release, r.Translators),
+			Created:     r.CreatedAt,
+			Link:        l,
+			Source:      l,
+			Author:      &feeds.Author{Name: r.Translators},
+		}
+		// RSS restricts authors to valid emails only
+		if *p.FeedType == "rss" {
+			it.Author = nil
+			it.Source = nil
+		}
+		mangaFeed.Add(it)
 	}
 	mangaFeed.Sort(func(a, b *feeds.Item) bool { return a.Id < b.Id })
 	var result string
