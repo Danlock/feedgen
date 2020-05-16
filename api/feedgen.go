@@ -2,6 +2,7 @@ package api
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -119,9 +120,10 @@ func (s *FgService) ViewManga(p operations.FeedgenViewMangaParams) middleware.Re
 			Href: scrape.GetMUPageURL(r.MUID),
 			Rel:  "self",
 		}
-
+		// RSS restricts ID's to valid URL's, but it's important to include the r.Release in the id so the feed can be sorted properly. This is the workaround
+		urlSafeRelease := base64.RawURLEncoding.EncodeToString([]byte(r.Release))
 		it := &feeds.Item{
-			Id:          fmt.Sprintf("%s&release=%s", scrape.GetMUPageURL(r.MUID), r.Release),
+			Id:          fmt.Sprintf("%s&release=%s", scrape.GetMUPageURL(r.MUID), urlSafeRelease),
 			Title:       fmt.Sprintf("%s %s", r.Title, r.Release),
 			Content:     fmt.Sprintf("%s %s released and translated by %s", r.Title, r.Release, r.Translators),
 			Description: fmt.Sprintf("%s %s released and translated by %s", r.Title, r.Release, r.Translators),
