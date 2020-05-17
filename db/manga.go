@@ -111,11 +111,13 @@ func (m *mangaStore) UpsertRelease(ctx context.Context, releases []scrape.MangaR
 	releaseValues = releaseValues[:len(releaseValues)-1]
 	releaseQuery = fmt.Sprintf(releaseQuery, releaseValues)
 	releaseQuery = m.db.Rebind(releaseQuery)
-	if _, err := m.db.ExecContext(ctx, releaseQuery, valuesArr...); err != nil {
+	results, err := m.db.ExecContext(ctx, releaseQuery, valuesArr...)
+	if err != nil {
 		logger.Errf(ctx, "Failed to upsert release with query %s and err: %+v", releaseQuery, ErrDetails(err))
 		return errors.WithStack(err)
 	}
-	logger.Dbgf(ctx, "Upserted %d releases", len(valuesArr)/3)
+	rowsA, err := results.RowsAffected()
+	logger.Dbgf(ctx, "Upserted %d releases, affecting %d rows, with rows err %+v", len(releases)-releaesMissingMUIDs, rowsA, err)
 	return nil
 }
 
