@@ -13,9 +13,12 @@
   <div>
     <p class="center-me">
       Feedgen generates RSS, Atom and JSON feeds for manga releases. </br>
-      Hit the Make Feed button after entering all the manga you want to be part of your release feed. <br />
-      The link can be used in QuiteRSS, Mozilla Thunderbird or any reader that accepts one of the feed types. <br />
+      Simply add manga titles below, and hit the Make Feed button once done. <br />
+      The returned feed link can be used in QuiteRSS, Mozilla Thunderbird or any RSS/Atom/JSON feed reader.<br />
       Release info is sourced from MangaUpdates periodically throughout the day.</br>
+      If you want to add new manga to your feed, paste the feed link in the input below. The manga from that feed will
+      be
+      added to this list.</br>
       Note that the given manga title must match exactly with the title on MangaUpdates.</br>
       View the source code <a href="https://github.com/Danlock/feedgen">here</a> </br>
     </p>
@@ -23,13 +26,13 @@
   </div>
   <div>
     <p class="center-me">
-      <label for="manga-feed-url">Enter previous feed URL:</label>
+      <label for="manga-feed-url">Enter feedgen.xyz feed URL:</label>
       <input id="manga-feed-url">
       <button id="manga-feed-url-button" onclick="viewMangaFeed()">View</button>
     </p>
     <p class="center-me">OR</p>
     <p class="center-me">
-      <label for="manga-titles">Enter manga:</label>
+      <label for="manga-titles">Enter manga title:</label>
       <input id="manga-titles">
       <button id="manga-title-add-button" onclick="addMangaTitle()">+</button>
     </p>
