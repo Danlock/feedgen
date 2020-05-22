@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/danlock/feedgen/db"
 	"github.com/danlock/feedgen/gen/restapi/operations"
@@ -114,8 +115,11 @@ func (s *FgService) ViewManga(p operations.FeedgenViewMangaParams) middleware.Re
 			Rel:  "self",
 		},
 	}
-
+	var latestRelease time.Time
 	for _, r := range releases {
+		if r.CreatedAt.After(latestRelease) {
+			latestRelease = r.CreatedAt
+		}
 		// RSS restricts ID's to valid URL's, but it's important to include the r.Release in the id so the feed can be sorted properly. This is the workaround
 		urlSafeRelease := base64.RawURLEncoding.EncodeToString([]byte(r.Release))
 		uniqueMULink := fmt.Sprintf("%s&release=%s", scrape.GetMUPageURL(r.MUID), urlSafeRelease)
@@ -129,6 +133,7 @@ func (s *FgService) ViewManga(p operations.FeedgenViewMangaParams) middleware.Re
 			Content:     fmt.Sprintf("%s %s released and translated by %s", r.Title, r.Release, r.Translators),
 			Description: fmt.Sprintf("%s %s released and translated by %s", r.Title, r.Release, r.Translators),
 			Created:     r.CreatedAt,
+			Updated:     r.CreatedAt,
 			Link:        l,
 			Source:      l,
 			Author:      &feeds.Author{Name: r.Translators},
@@ -140,6 +145,7 @@ func (s *FgService) ViewManga(p operations.FeedgenViewMangaParams) middleware.Re
 		}
 		mangaFeed.Add(it)
 	}
+	mangaFeed.Updated = latestRelease
 	mangaFeed.Sort(func(a, b *feeds.Item) bool { return a.Id < b.Id })
 	var result string
 	switch *p.FeedType {
