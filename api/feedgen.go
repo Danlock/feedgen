@@ -116,14 +116,15 @@ func (s *FgService) ViewManga(p operations.FeedgenViewMangaParams) middleware.Re
 	}
 
 	for _, r := range releases {
-		l := &feeds.Link{
-			Href: scrape.GetMUPageURL(r.MUID),
-			Rel:  "self",
-		}
 		// RSS restricts ID's to valid URL's, but it's important to include the r.Release in the id so the feed can be sorted properly. This is the workaround
 		urlSafeRelease := base64.RawURLEncoding.EncodeToString([]byte(r.Release))
+		uniqueMULink := fmt.Sprintf("%s&release=%s", scrape.GetMUPageURL(r.MUID), urlSafeRelease)
+		l := &feeds.Link{
+			Href: uniqueMULink,
+			Rel:  "self",
+		}
 		it := &feeds.Item{
-			Id:          fmt.Sprintf("%s&release=%s", scrape.GetMUPageURL(r.MUID), urlSafeRelease),
+			Id:          uniqueMULink,
 			Title:       fmt.Sprintf("%s %s", r.Title, r.Release),
 			Content:     fmt.Sprintf("%s %s released and translated by %s", r.Title, r.Release, r.Translators),
 			Description: fmt.Sprintf("%s %s released and translated by %s", r.Title, r.Release, r.Translators),
